@@ -28,9 +28,12 @@ namespace Che_ssServer.Helpers
             Error = error;
         }
 
-        public static MoveResult FromSuccess(ChessPosition from, ChessPosition to, string message, ChessPiece took = null)
+        public static MoveResult FromSuccess(ChessPosition from, ChessPosition to, string message)
         {
-            return new MoveResult(true, message, from, to, null, took);
+            if(to.PieceHere != null && to.PieceHere.Color != from.PieceHere.Color) {
+                message += " took " + to.PieceHere.Type;
+            }
+            return new MoveResult(true, message, from, to, null, to.PieceHere);
         }
         public static MoveResult FromError(ChessPosition from, ChessPosition to, string message)
         {

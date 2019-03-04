@@ -42,11 +42,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\ChessGame.cs" />
     <Compile Include="Classes\ChessPiece.cs" />
     <Compile Include="Classes\ChessPosition.cs" />
     <Compile Include="Classes\Connection.cs" />
     <Compile Include="Classes\PieceType.cs" />
     <Compile Include="Classes\Player.cs" />
+    <Compile Include="Helpers\ChessEntity.cs" />
     <Compile Include="Helpers\IResult.cs" />
     <Compile Include="Helpers\MoveResult.cs" />
     <Compile Include="Program.cs" />

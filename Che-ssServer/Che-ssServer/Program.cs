@@ -16,64 +16,56 @@ namespace Che_ssServer
 #else
         public const bool BOT_DEBUG = false;
 #endif
+        public static ChessGame Game; // only one game to start with.
         static void Main(string[] args)
         {
-            StartUp();
-        }
-
-        /// <summary>
-        ///    X1 X2 X3 X4 X5 X6 X7 X8
-        /// Y8
-        /// Y7
-        /// Y6
-        /// Y5
-        /// Y4
-        /// Y3
-        /// Y2
-        /// Y1
-        ///    X1 X2 X3 X4 X5 X6 X7 X8
-        /// </summary>
-        public static ChessPosition[,] Board;
-
-        public static void StartUp()
-        {
-            Board = new ChessPosition[8, 8];
-            for (int x = 1; x <= 8; x++) {
-                // x goes across bottom
-                for(int y = 1; y <= 8; y++)
-                {
-                    // y goes vertical
-                    var newPosition = new ChessPosition(x, y);
-                    var player = y > 6 ? PlayerColor.Black : PlayerColor.White;
-                    ChessPiece piece = null;
-                    // Set types.
-                    if(y == 2 || y == 7)
-                    {
-                        piece = new ChessPiece(PieceType.Pawn, newPosition, player);
-                    }
-                    if(x == 1 || x == 8)
-                    {
-                        if(y == 1 || y == 8)
-                        {
-                            piece = new ChessPiece(PieceType.Rook, newPosition, player);
-                        }
-                    }
-                    if(x == 2 || x == 7)
-                    {
-                        if(y == 1 || y == 8)
-                        {
-                            piece = new ChessPiece(PieceType.Knight, newPosition, player);
-                        }
-                    }
-                }
-            }
+            Game = new ChessGame();
+            Game.StartUp();
             Console.ReadLine();
         }
 
+        public static string XtoStr(int x)
+        {
+            // todo: use ASCII?
+            switch(x)
+            {
+                case 1:
+                    return "A";
+                case 2:
+                    return "B";
+                case 3:
+                    return "C";
+                case 4:
+                    return "D";
+                case 5:
+                    return "E";
+                case 6:
+                    return "F";
+                case 7:
+                    return "G";
+                case 8:
+                    return "H";
+                default:
+                    return "N/A";
+            }
+        }
 
         public static void Log(LogMessage msg) => Services.LoggingService.OnLogAsync(msg);
 
         public static void Log(string message, LogSeverity sev, string source = "App") => LoggingService.OnLogAsync(new LogMessage(sev, source, message));
 
+    }
+
+    public class ChessPositionEquality : IEqualityComparer<ChessPosition>
+    {
+        public bool Equals(ChessPosition x, ChessPosition y)
+        {
+            return x.X == y.X && x.Y == y.Y;
+        }
+
+        public int GetHashCode(ChessPosition obj)
+        {
+            return obj.GetHashCode();
+        }
     }
 }
