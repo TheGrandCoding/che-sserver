@@ -27,10 +27,9 @@ namespace Che_ssServer
             Game.White = white;
             Game.Black = black;
             Game.StartUp();
-            var thing = Game.GetLocation(1, 2);
-            thing.PieceHere.Move(Game.GetLocation(1, 3));
-            Game.BroadCastDeltas();
-            Console.ReadLine();
+            Game.White.DEBUG_RaiseMessage("MOVE:A2:A3");
+            while(true)
+                Console.ReadLine();
         }
 
         public static string XtoStr(int x)
@@ -56,6 +55,30 @@ namespace Che_ssServer
                     return "H";
                 default:
                     return "N/A";
+            }
+        }
+        public static int StrToX(string str)
+        {
+            switch(str)
+            {
+                case "A":
+                    return 1;
+                case "B":
+                    return 2;
+                case "C":
+                    return 3;
+                case "D":
+                    return 4;
+                case "E":
+                    return 5;
+                case "F":
+                    return 6;
+                case "G":
+                    return 7;
+                case "H":
+                    return 8;
+                default:
+                    return 0;
             }
         }
 

@@ -67,6 +67,7 @@ namespace Che_ssServer.Classes
 
         public virtual void Send(string message)
         {
+            LogSendMessage(message);
             return;
             try
             {
@@ -86,6 +87,13 @@ namespace Che_ssServer.Classes
             }
         }
 
+        public void DEBUG_RaiseMessage(string message)
+        {
+#if DEBUG
+            RecievedMessage?.Invoke(this, message);
+#endif
+        }
+
         public void Disconnect(bool kicked)
         {
             if (!Connected)
@@ -100,5 +108,10 @@ namespace Che_ssServer.Classes
             catch { }
         }
         public abstract void HandleDisconnectLogic(bool kicked);
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

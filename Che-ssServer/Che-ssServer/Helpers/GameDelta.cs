@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,27 +15,30 @@ namespace Che_ssServer.Helpers
         public readonly int ID;
         public ChessGame Game;
         public GameDelta LastDelta;
-        public readonly Dictionary<string, ChessPosition> Board;
+        public readonly ImmutableDictionary<string, ChessPosition> Board;
 
         public GameDelta(ChessGame game, GameDelta delta)
         {
             ID = System.Threading.Interlocked.Increment(ref _id);
             Game = game;
             LastDelta = delta;
-            Board = new Dictionary<string, ChessPosition>();
             CurrentColor = game.CurrentlyWaitingFor.Color;
             WhiteName = game.White.Name;
             BlackName = game.Black.Name;
+            var board = new Dictionary<string, ChessPosition>();
             foreach(var item in Game.Board)
             {
-                Board.Add(item.Pos, item);
+                board.Add(item.Pos, item);
             }
+            Board = board.ToImmutableDictionary();
         }
         // Now for the game information
         public PlayerColor CurrentColor;
         public string WhiteName;
         public string BlackName;
         public string BoardStr => JsonConvert.SerializeObject(Board);
+        public TimeSpan WhiteTime => Game.WhiteTime;
+        public TimeSpan BlackTime => Game.BlackTime;
 
         // Now the comparison
         public string GetDelta()
@@ -51,6 +55,14 @@ namespace Che_ssServer.Helpers
             if(this.BlackName != this.LastDelta?.BlackName)
             {
                 delta.black = this.BlackName;
+            }
+            if(this.WhiteTime != this.LastDelta?.WhiteTime)
+            {
+                delta.whiteTime = this.WhiteTime;
+            }
+            if(this.BlackTime != this.LastDelta?.BlackTime)
+            {
+                delta.blackTime = this.BlackTime;
             }
             var board = new Dictionary<string, ChessPosition>();
             foreach(var item in this.Board)

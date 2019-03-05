@@ -33,23 +33,25 @@ namespace Che_ssServer.Classes
                     // can't move at all
                 } else if(Location.ColX == 7)
                 { // can only move forward once.
-                    pos.Add(this.Location.GetRelative(1, 0));
+                    pos.Add(this.Location.GetRelative(0, 1));
                 }
                 else 
                 { // can move one ahead AND more.
-                    pos.Add(this.Location.GetRelative(1, 0));
+                    pos.Add(this.Location.GetRelative(0, 1));
                     if (atStartingPosition)
                     {
-                        pos.Add(this.Location.GetRelative(2, 0));
+                        pos.Add(this.Location.GetRelative(0, 2));
                     }
                 }
             } else if(Type == PieceType.Bishop)
             {
-
-            } else
+                throw new NotImplementedException();
+            }
+            else
             {
                 throw new NotImplementedException();
             }
+            return pos;
         }
 
         private List<ChessPosition> ReturnValidLocations(IEnumerable<ChessPosition> positions)
@@ -97,13 +99,21 @@ namespace Che_ssServer.Classes
             var positions = this.GetMoveablePositions();
             if (positions.Contains(to, new ChessPositionEquality()))
             {
+                var result = MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
+                //                       |
+                // needs to be before as V cannot be null
                 to.PieceHere = this;
                 this.Location.PieceHere = null;
-                return MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
+                return result;
             } else
             {
                 return MoveResult.FromError(this.Location, to, $"{this.Type} is unable to move to {to.Pos}");
             }
+        }
+
+        public override string ToString()
+        {
+            return $"{Color} {Type}";
         }
     }
 }

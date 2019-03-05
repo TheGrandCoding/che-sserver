@@ -97,21 +97,81 @@ namespace Che_ssServer.Classes
             string message = $"PLY:{CurrentlyWaitingFor.Color};{WhiteTime};{BlackTime}";
             White.Send(message); // send both who's turn it is to go next
             Black.Send(message); // and also sync the timers across both clients
+            BroadCastDeltas();
+        }
+
+        private bool SharedActions(Player player, Player opposite, PlayerColor color, string message)
+        {
+            if(message.StartsWith("MOVE:"))
+            { // expected: "MOVE:[from]:[to]"
+                var split = message.Split(':');
+                ChessPosition from = GetLocation(split[1]);
+                ChessPosition to = GetLocation(split[2]);
+                if(from.PieceHere != null)
+                {
+                    var result = from.PieceHere.Move(to);
+                    if(result.IsSuccess)
+                    {
+                    } else
+                    {
+                        player.Send($"ERR/MOVE:{from.Pos}:{to.Pos}:{result.Message}");
+                    }
+                } else
+                {
+                    player.Send($"ERR/MOVE:{from.Pos}:{to.Pos}:No piece on that square");
+                }
+            }
+            else if(message == "RESIGN")
+            {
+                player.Send("LOSE:RESIGN");
+                opposite.Send("WIN:RESIGN");
+            } else
+            { 
+                // not handled
+                return false;
+            } 
+            // handled
+            return true;
         }
 
         private void Black_RecievedMessage(object sender, string e)
         {
-            throw new NotImplementedException();
+            if(CurrentlyWaitingFor == Black)
+            {
+                if(SharedActions(Black, White, PlayerColor.Black, e))
+                { // it was a shared action, and was handled.
+                } else
+                {
+                    // some other action
+                }
+                BroadCastDeltas();
+            }
         }
 
         private void White_RecievedMessage(object sender, string e)
         {
-            throw new NotImplementedException();
+            if(CurrentlyWaitingFor == White)
+            {
+                if (SharedActions(White, Black, PlayerColor.White, e))
+                { // it was a shared action, and was handled.
+                }
+                else
+                {
+                    // some other action
+                }
+                BroadCastDeltas();
+            }
         }
 
         public ChessPosition GetLocation(int x, int y)
         { // need to offset x/y as the Board is zero-based, while x/y are 1-based
-            return Board[x-1, y-1];
+            return Board[x - 1, y - 1];
+        }
+        public ChessPosition GetLocation(string pos)
+        {
+            int x = Program.StrToX(pos.Substring(0, 1));
+            int y = int.Parse(pos.Substring(1));
+            return Board[x - 1, y - 1];
         }
     }
 }

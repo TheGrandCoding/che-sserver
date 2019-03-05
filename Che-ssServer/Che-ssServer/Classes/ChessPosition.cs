@@ -34,7 +34,7 @@ namespace Che_ssServer.Classes
 
         public ChessPosition GetRelative(int x, int y)
         {
-            x += this.ColX;
+            x += this.ColX; // 1 + 1 == 2
             y += this.ColY;
             x = Controller == PlayerColor.White ? x : 9 - x;
             y = Controller == PlayerColor.White ? y : 9 - y;
@@ -81,5 +81,11 @@ namespace Che_ssServer.Classes
             hashCode = hashCode * -1521134295 + EqualityComparer<ChessPiece>.Default.GetHashCode(PieceHere);
             return hashCode;
         }
+
+        public override string ToString()
+        {
+            return $"{Pos} ({X}, {Y}) [{ColX}, {ColY}] {PieceHere}";
+        }
+
     }
 }
