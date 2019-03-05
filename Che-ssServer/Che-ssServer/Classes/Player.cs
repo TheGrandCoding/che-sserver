@@ -21,6 +21,7 @@ namespace Che_ssServer.Classes
 
     public enum PlayerColor
     {
+        NotControlled = 0,
         White,
         Black
     }

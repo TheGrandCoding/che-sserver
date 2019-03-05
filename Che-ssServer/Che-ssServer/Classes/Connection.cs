@@ -67,6 +67,7 @@ namespace Che_ssServer.Classes
 
         public virtual void Send(string message)
         {
+            return;
             try
             {
                 message = $"%{message}`";

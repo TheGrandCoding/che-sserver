@@ -20,7 +20,16 @@ namespace Che_ssServer
         static void Main(string[] args)
         {
             Game = new ChessGame();
+            var white = new Player();
+            white.Name = "Alex";
+            var black = new Player();
+            black.Name = "Bob";
+            Game.White = white;
+            Game.Black = black;
             Game.StartUp();
+            var thing = Game.GetLocation(1, 2);
+            thing.PieceHere.Move(Game.GetLocation(1, 3));
+            Game.BroadCastDeltas();
             Console.ReadLine();
         }
 

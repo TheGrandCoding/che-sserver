@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Che_ssServer.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,6 +13,8 @@ namespace Che_ssServer.Classes
         public Player Black;
         public TimeSpan WhiteTime;
         public TimeSpan BlackTime;
+
+        public Dictionary<int, GameDelta> PastDeltas = new Dictionary<int, GameDelta>();
 
         public Player CurrentlyWaitingFor;
 
@@ -60,12 +63,29 @@ namespace Che_ssServer.Classes
                             piece = new ChessPiece(PieceType.Knight, newPosition, player, this);
                         }
                     }
+                    var pos = new ChessPosition(x, y, this, piece);
+                    pos.PieceHere = piece;
+                    if(pos.PieceHere != null)
+                        pos.PieceHere.Location = pos;
+                    Board[x - 1, y - 1] = pos;
                 }
             }
             White.ClearListeners();
             Black.ClearListeners();
             White.RecievedMessage += White_RecievedMessage;
             Black.RecievedMessage += Black_RecievedMessage;
+            CurrentlyWaitingFor = White;
+            BroadCastDeltas();
+        }
+
+        public void BroadCastDeltas()
+        {
+            var lastDelta = PastDeltas.Count > 0 ? PastDeltas.Values.LastOrDefault() : null;
+            var newDelta = new GameDelta(this, lastDelta);
+            PastDeltas.Add(newDelta.ID, newDelta);
+            string message = newDelta.GetDelta();
+            White.Send(message);
+            Black.Send(message);
         }
 
         private void SwitchPlayers()
@@ -90,8 +110,8 @@ namespace Che_ssServer.Classes
         }
 
         public ChessPosition GetLocation(int x, int y)
-        {
-            return Board[x, y];
+        { // need to offset x/y as the Board is zero-based, while x/y are 1-based
+            return Board[x-1, y-1];
         }
     }
 }

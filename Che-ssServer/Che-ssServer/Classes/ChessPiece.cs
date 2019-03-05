@@ -1,4 +1,5 @@
 ﻿using Che_ssServer.Helpers;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,8 +8,10 @@ using System.Threading.Tasks;
 
 namespace Che_ssServer.Classes
 {
+    [JsonObject(MemberSerialization = MemberSerialization.OptIn)]
     public class ChessPiece : ChessEntity
     {
+        [JsonProperty]
         public PieceType Type;
         public ChessPosition Location;
         public PlayerColor Color;
@@ -37,14 +40,16 @@ namespace Che_ssServer.Classes
                     pos.Add(this.Location.GetRelative(1, 0));
                     if (atStartingPosition)
                     {
-                        pos.Add(this.Location.GetRelative(1, 0));
+                        pos.Add(this.Location.GetRelative(2, 0));
                     }
                 }
             } else if(Type == PieceType.Bishop)
             {
 
+            } else
+            {
+                throw new NotImplementedException();
             }
-            throw new NotImplementedException();
         }
 
         private List<ChessPosition> ReturnValidLocations(IEnumerable<ChessPosition> positions)
@@ -92,6 +97,8 @@ namespace Che_ssServer.Classes
             var positions = this.GetMoveablePositions();
             if (positions.Contains(to, new ChessPositionEquality()))
             {
+                to.PieceHere = this;
+                this.Location.PieceHere = null;
                 return MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
             } else
             {

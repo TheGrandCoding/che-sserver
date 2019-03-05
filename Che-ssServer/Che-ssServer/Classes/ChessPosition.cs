@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Che_ssServer.Classes
 {
+    [JsonObject(MemberSerialization = MemberSerialization.OptIn)]
     public class ChessPosition : Helpers.ChessEntity
     {
         /// <summary>
@@ -18,6 +20,7 @@ namespace Che_ssServer.Classes
         /// </summary>
         public int Y { get; }
 
+        [JsonProperty]
         public string Pos => Program.XtoStr(X) + Y.ToString(); // eg, A4
 
         /// <summary>
@@ -38,13 +41,45 @@ namespace Che_ssServer.Classes
             return Game.GetLocation(x, y);
         }
 
+        [JsonProperty]
         public ChessPiece PieceHere;
-        public PlayerColor Controller => PieceHere.Color;
+        public PlayerColor Controller => PieceHere?.Color ?? PlayerColor.NotControlled;
 
-        public ChessPosition(int x, int y, ChessGame game) : base(game)
+        public ChessPosition(int x, int y, ChessGame game, ChessPiece piece = null) : base(game)
         {
             X = x;
             Y = y;
+            PieceHere = piece;
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+            if (obj is ChessPosition che)
+            {
+                if(che.Pos == this.Pos)
+                {
+                    if(this.PieceHere != null)
+                    {
+                        return this.PieceHere.Equals(che.PieceHere);
+                    } else
+                    {
+                        return che.PieceHere == null;
+                    }
+                }
+            } 
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = 58288899;
+            hashCode = hashCode * -1521134295 + X.GetHashCode();
+            hashCode = hashCode * -1521134295 + Y.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<ChessPiece>.Default.GetHashCode(PieceHere);
+            return hashCode;
         }
     }
 }
