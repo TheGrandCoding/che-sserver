@@ -14,6 +14,8 @@ namespace Che_ssServer.Classes
         public TimeSpan WhiteTime;
         public TimeSpan BlackTime;
 
+        public List<ChessPiece> TakenPieces = new List<ChessPiece>();
+
         public Dictionary<int, GameDelta> PastDeltas = new Dictionary<int, GameDelta>();
 
         public Player CurrentlyWaitingFor;
@@ -112,6 +114,7 @@ namespace Che_ssServer.Classes
                     var result = from.PieceHere.Move(to);
                     if(result.IsSuccess)
                     {
+                        opposite.Send(message); // mirror to opposition so they know.
                     } else
                     {
                         player.Send($"ERR/MOVE:{from.Pos}:{to.Pos}:{result.Message}");

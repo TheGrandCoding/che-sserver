@@ -100,8 +100,11 @@ namespace Che_ssServer.Classes
             if (positions.Contains(to, new ChessPositionEquality()))
             {
                 var result = MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
-                //                       |
-                // needs to be before as V cannot be null
+                if(to.PieceHere != null)
+                {
+                    // took something
+                    Game.TakenPieces.Add(to.PieceHere);
+                }
                 to.PieceHere = this;
                 this.Location.PieceHere = null;
                 return result;

@@ -8,6 +8,10 @@ namespace Che_ssServer.Classes
 {
     public class Player : Connection
     {
+        public Player(string name) : base(name)
+        {
+
+        }
         public PlayerColor Color;
         public override void HandleDisconnectLogic(bool kicked)
         {

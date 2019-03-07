@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,7 +14,6 @@ namespace Che_ssServer.Helpers
         public readonly int ID;
         public ChessGame Game;
         public GameDelta LastDelta;
-        public readonly ImmutableDictionary<string, ChessPosition> Board;
 
         public GameDelta(ChessGame game, GameDelta delta)
         {
@@ -25,18 +23,11 @@ namespace Che_ssServer.Helpers
             CurrentColor = game.CurrentlyWaitingFor.Color;
             WhiteName = game.White.Name;
             BlackName = game.Black.Name;
-            var board = new Dictionary<string, ChessPosition>();
-            foreach(var item in Game.Board)
-            {
-                board.Add(item.Pos, item);
-            }
-            Board = board.ToImmutableDictionary();
         }
         // Now for the game information
         public PlayerColor CurrentColor;
         public string WhiteName;
         public string BlackName;
-        public string BoardStr => JsonConvert.SerializeObject(Board);
         public TimeSpan WhiteTime => Game.WhiteTime;
         public TimeSpan BlackTime => Game.BlackTime;
 
@@ -58,27 +49,12 @@ namespace Che_ssServer.Helpers
             }
             if(this.WhiteTime != this.LastDelta?.WhiteTime)
             {
-                delta.whiteTime = this.WhiteTime;
+                delta.whiteTime = this.WhiteTime.ToString();
             }
             if(this.BlackTime != this.LastDelta?.BlackTime)
             {
-                delta.blackTime = this.BlackTime;
+                delta.blackTime = this.BlackTime.ToString();
             }
-            var board = new Dictionary<string, ChessPosition>();
-            foreach(var item in this.Board)
-            {
-                ChessPosition otherItem = null;
-                if(this.LastDelta?.Board.TryGetValue(item.Key, out otherItem) ?? true)
-                {
-                    if(item.Value.Equals(otherItem))
-                    { // no need to add, since it is equal to
-                    } else
-                    { // item has changed, so need to inform of that change
-                        board.Add(item.Key, item.Value);
-                    }
-                }
-            }
-            delta.board = board;
             return JsonConvert.SerializeObject(delta);
         }
     }

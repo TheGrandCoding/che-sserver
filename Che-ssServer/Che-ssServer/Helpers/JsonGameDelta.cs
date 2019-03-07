@@ -14,8 +14,7 @@ namespace Che_ssServer.Helpers
         public PlayerColor color;
         public string white;
         public string black;
-        public Dictionary<string, ChessPosition> board;
-        public TimeSpan whiteTime;
-        public TimeSpan blackTime;
+        public string whiteTime; // formatted as TimeSpan
+        public string blackTime;
     }
 }
