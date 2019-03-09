@@ -12,9 +12,13 @@ namespace Che_ssServer.Classes
     /// Contains the shared functions/items that are shared
     /// </summary>
     public abstract class Connection
-    {//
+    {
+        public Connection(string name)
+        {
+            Name = name;
+        }
         public readonly string Name;
-        public bool Connected { get; internal set; }
+        public bool Connected { get; protected set; }
         public int disconnected = 0;
         public TcpClient Client;
         private bool disconnectedfunctioncalled = false;

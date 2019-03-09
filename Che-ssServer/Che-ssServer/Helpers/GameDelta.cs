@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,7 +14,6 @@ namespace Che_ssServer.Helpers
         public readonly int ID;
         public ChessGame Game;
         public GameDelta LastDelta;
-        public readonly ImmutableDictionary<string, ChessPosition> Board;
 
         public GameDelta(ChessGame game, GameDelta delta)
         {
@@ -27,18 +25,11 @@ namespace Che_ssServer.Helpers
             BlackName = game.Black.Name;
             WhiteTime = game.WhiteTime.ToString();
             BlackTime = game.BlackTime.ToString();
-            var board = new Dictionary<string, ChessPosition>();
-            foreach(var item in Game.Board)
-            {
-                board.Add(item.Pos, item);
-            }
-            Board = board.ToImmutableDictionary();
         }
         // Now for the game information
         public PlayerColor CurrentColor;
         public string WhiteName;
         public string BlackName;
-        public string BoardStr => JsonConvert.SerializeObject(Board);
         public string WhiteTime;
         public string BlackTime;
 
@@ -66,21 +57,6 @@ namespace Che_ssServer.Helpers
             {
                 delta.blackTime = this.BlackTime.ToString();
             }
-            var board = new Dictionary<string, ChessPosition>();
-            foreach(var item in this.Board)
-            {
-                ChessPosition otherItem = null;
-                if(this.LastDelta?.Board.TryGetValue(item.Key, out otherItem) ?? true)
-                {
-                    if(item.Value.Equals(otherItem))
-                    { // no need to add, since it is equal to
-                    } else
-                    { // item has changed, so need to inform of that change
-                        board.Add(item.Key, item.Value);
-                    }
-                }
-            }
-            delta.board = board;
             delta.ID = this.ID;
             return JsonConvert.SerializeObject(delta);
         }

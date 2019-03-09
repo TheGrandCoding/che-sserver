@@ -9,6 +9,10 @@ namespace Che_ssServer.Classes
 {
     public class Player : Connection
     {
+        public Player(string name) : base(name)
+        {
+
+        }
         public PlayerColor Color;
 
         public Player(string name, TcpClient client) : base(name, client)

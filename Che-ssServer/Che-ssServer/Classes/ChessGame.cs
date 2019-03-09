@@ -17,6 +17,8 @@ namespace Che_ssServer.Classes
         public bool HasWhiteGoneFirst { get; protected set; }
         public System.Timers.Timer TickTimer;
 
+        public List<ChessPiece> TakenPieces = new List<ChessPiece>();
+
         public Dictionary<int, GameDelta> PastDeltas = new Dictionary<int, GameDelta>();
 
         public List<ChessPiece> AllPieces = new List<ChessPiece>();
