@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,6 +10,11 @@ namespace Che_ssServer.Classes
     public class Player : Connection
     {
         public PlayerColor Color;
+
+        public Player(string name, TcpClient client) : base(name, client)
+        {
+        }
+
         public override void HandleDisconnectLogic(bool kicked)
         {
         }

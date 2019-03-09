@@ -20,6 +20,8 @@ namespace Che_ssServer.Classes
         /// </summary>
         public int Y { get; }
 
+        public TakableBy Takable;
+
         [JsonProperty]
         public string Pos => Program.XtoStr(X) + Y.ToString(); // eg, A4
 
@@ -88,4 +90,28 @@ namespace Che_ssServer.Classes
         }
 
     }
+
+    [Flags]
+    public enum TakableBy
+    {
+        /// <summary>
+        /// Location cannot be took by either player
+        /// </summary>
+        None = 0b00,
+
+        /// <summary>
+        /// Location could be taken by a white player
+        /// </summary>
+        White= 0b01,
+        /// <summary>
+        /// Location could be taken by a black player
+        /// </summary>
+        Black= 0b11,
+        /// <summary>
+        /// Location could be taken by either player
+        /// </summary>
+        Both = White | Black
+
+    }
+
 }

@@ -25,6 +25,8 @@ namespace Che_ssServer.Helpers
             CurrentColor = game.CurrentlyWaitingFor.Color;
             WhiteName = game.White.Name;
             BlackName = game.Black.Name;
+            WhiteTime = game.WhiteTime.ToString();
+            BlackTime = game.BlackTime.ToString();
             var board = new Dictionary<string, ChessPosition>();
             foreach(var item in Game.Board)
             {
@@ -37,8 +39,8 @@ namespace Che_ssServer.Helpers
         public string WhiteName;
         public string BlackName;
         public string BoardStr => JsonConvert.SerializeObject(Board);
-        public TimeSpan WhiteTime => Game.WhiteTime;
-        public TimeSpan BlackTime => Game.BlackTime;
+        public string WhiteTime;
+        public string BlackTime;
 
         // Now the comparison
         public string GetDelta()
@@ -58,11 +60,11 @@ namespace Che_ssServer.Helpers
             }
             if(this.WhiteTime != this.LastDelta?.WhiteTime)
             {
-                delta.whiteTime = this.WhiteTime;
+                delta.whiteTime = this.WhiteTime.ToString();
             }
             if(this.BlackTime != this.LastDelta?.BlackTime)
             {
-                delta.blackTime = this.BlackTime;
+                delta.blackTime = this.BlackTime.ToString();
             }
             var board = new Dictionary<string, ChessPosition>();
             foreach(var item in this.Board)
@@ -79,6 +81,7 @@ namespace Che_ssServer.Helpers
                 }
             }
             delta.board = board;
+            delta.ID = this.ID;
             return JsonConvert.SerializeObject(delta);
         }
     }

@@ -13,12 +13,19 @@ namespace Che_ssServer.Classes
     /// </summary>
     public abstract class Connection
     {//
-        public string Name;
+        public readonly string Name;
         public bool Connected { get; internal set; }
         public int disconnected = 0;
         public TcpClient Client;
         private bool disconnectedfunctioncalled = false;
         public Thread recicivedataThread;
+
+        public Connection(string name, TcpClient client)
+        {
+            Name = name;
+            Client = client;
+            StartCheckLogic();
+        }
 
         /// <summary>
         /// Removes any functions that are listening to messages recieved by this Connection
@@ -42,23 +49,35 @@ namespace Che_ssServer.Classes
 
         private void handleRecieveMessage()
         {
+#if DEBUG
+            if (Client == null)
+                return; // messages handled via the DEBUG function
+#endif
             string data;
             NetworkStream RecieveDataStream = Client.GetStream();
             byte[] bytes = new byte[256];
             int i;
             try
             {
-                while (Connected)
+                while (Connected && Client != null)
                 {
                     if ((i = RecieveDataStream.Read(bytes, 0, bytes.Length)) != 0)
                     {
                         data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                        RecievedMessage?.Invoke(this, data);
+                        foreach(var msg in data.Split('%'))
+                        {
+                            if (string.IsNullOrWhiteSpace(msg))
+                                continue;
+                            var message = msg.Substring(0, msg.IndexOf("`"));
+                            Program.Log(message, Services.LogSeverity.Debug, $"{Name}/Rec");
+                            RecievedMessage?.Invoke(this, message);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
+                Program.Log($"{Name}/RecM", ex);
                 this.Disconnect(false);
             }
         }
@@ -67,8 +86,11 @@ namespace Che_ssServer.Classes
 
         public virtual void Send(string message)
         {
-            LogSendMessage(message);
-            return;
+            if (Client == null)
+            {
+                LogSendMessage(message);
+                return;
+            }
             try
             {
                 message = $"%{message}`";

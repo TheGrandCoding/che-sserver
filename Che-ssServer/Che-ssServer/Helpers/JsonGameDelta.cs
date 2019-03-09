@@ -11,11 +11,14 @@ namespace Che_ssServer.Helpers
     [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore)]
     public struct JsonGameDelta
     {
+        [JsonRequired]
+        public int ID;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public PlayerColor color;
         public string white;
         public string black;
         public Dictionary<string, ChessPosition> board;
-        public TimeSpan whiteTime;
-        public TimeSpan blackTime;
+        public string whiteTime;
+        public string blackTime;
     }
 }
