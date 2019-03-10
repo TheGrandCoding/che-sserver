@@ -24,7 +24,7 @@ namespace Che_ssServer
         public static TcpListener Listener;
 
         public static MasterlistDLL.MasterlistServer Masterlist;
-        public static bool MasterlistEnabled { get; protected set; } 
+        public static bool MasterlistEnabled { get; protected set; } = false;
 
         static void Main(string[] args)
         {
@@ -36,6 +36,8 @@ namespace Che_ssServer
             Log("Listening on: " + Listener.LocalEndpoint.ToString(), LogSeverity.Debug);
             try
             {
+                if (!MasterlistEnabled)
+                    throw new Exception("Masterlist disabled.");
                 Masterlist = new MasterlistDLL.MasterlistServer(false, "chess#4008");
                 Masterlist.LogMessage += (sender, msg) =>
                 {
@@ -53,6 +55,38 @@ namespace Che_ssServer
             }
             while(true)
                 Console.ReadLine();
+        }
+
+        public static string PinString(PinType pin, string seperator = ", ")
+        {
+            string str = "";
+            if(pin.HasFlag(PinType.Fully))
+            {
+                str = "Fully pinned";
+            } else if(pin == PinType.NotPinned)
+            {
+                str = "Not pinned";
+            }
+            else
+            {
+                if(pin.HasFlag(PinType.Horizontal))
+                {
+                    str += "Horizontally" + seperator;
+                }
+                if(pin.HasFlag(PinType.Vertical))
+                {
+                    str += "Vertically" + seperator;
+                }
+                if(pin.HasFlag(PinType.DiagonalLeft))
+                {
+                    str += "Diagonally left" + seperator;
+                }
+                if(pin.HasFlag(PinType.DiagonalRight))
+                {
+                    str += "Diagonally right" + seperator;
+                }
+            }
+            return str;
         }
 
         static void HandleNewConnections()

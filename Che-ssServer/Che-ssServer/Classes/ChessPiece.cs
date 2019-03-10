@@ -27,70 +27,133 @@ namespace Che_ssServer.Classes
             Type = type; Location = pos; Color = color;
         }
 
-        public List<ChessPosition> GetMoveablePositions()
+        public AttemptMoveResult GetMoveablePositions()
         {
             List<ChessPosition> pos = new List<ChessPosition>();
-            if (Type == PieceType.Pawn)
+            string errMessage = "";
+            try
             {
-                if (Location.ColY == 8)
+                if (Type == PieceType.Pawn)
                 {
-                    // can't move at all
-                }
-                else if (Location.ColY == 7)
-                { // can only move forward once.
-                    pos.Add(this.Location.GetRelative(0, 1));
-                }
-                else
-                { // can move one ahead AND more.
-                    pos.Add(this.Location.GetRelative(0, 1));
-                    if (atStartingPosition)
+                    if(this.Pinned != PinType.NotPinned)
                     {
-                        pos.Add(this.Location.GetRelative(0, 2));
+                        if(this.Pinned == PinType.Vertical)
+                        { // only pinned vertically, and pawns can only move vertically
+                            // so it should move?
+                        } else
+                        {
+                            errMessage = "Pawn pinned: " + Program.PinString(Pinned);
+                        }
                     }
-                    var leftDiag = this.Location.GetRelative(-1, 1);
-                    var rightDiag = this.Location.GetRelative(1, 1);
-                    if (leftDiag != null && leftDiag.PieceHere != null)
-                        pos.Add(leftDiag);
-                    if (rightDiag != null && rightDiag.PieceHere != null)
-                        pos.Add(rightDiag);
+                    if (Location.ColY == 8)
+                    {
+                        errMessage = "Pawn at end, can only promote";
+                        // can't move at all
+                    }
+                    else if (Location.ColY == 7)
+                    { // can only move forward once.
+                        pos.Add(this.Location.GetRelative(0, 1));
+                    }
+                    else
+                    { // can move one ahead AND more.
+                        pos.Add(this.Location.GetRelative(0, 1));
+                        if (atStartingPosition)
+                        {
+                            pos.Add(this.Location.GetRelative(0, 2));
+                        }
+                        var leftDiag = this.Location.GetRelative(-1, 1);
+                        var rightDiag = this.Location.GetRelative(1, 1);
+                        if (leftDiag != null && leftDiag.PieceHere != null)
+                            pos.Add(leftDiag);
+                        if (rightDiag != null && rightDiag.PieceHere != null)
+                            pos.Add(rightDiag);
+                    }
                 }
-            }
-            else if (Type == PieceType.Bishop)
-            {
-                pos = GetDiagonalPositions();
-            }
-            else if (Type == PieceType.Rook)
-            {
-                pos = GetCrossPositions();
-            }
-            else if (Type == PieceType.Queen)
-            {
-                pos = GetCrossPositions();
-                pos.AddRange(GetDiagonalPositions());
-            }
-            else if (Type == PieceType.King)
-            {
-                pos.Add(Location.GetRelative(-1, 1) ?? Location);  // Top left
-                pos.Add(Location.GetRelative(0, 1) ?? Location);  // Top centre
-                pos.Add(Location.GetRelative(1, 1) ?? Location); // Top right
-                pos.Add(Location.GetRelative(0, 1) ?? Location); // Middle right 
-                pos.Add(Location.GetRelative(1, -1) ?? Location); // Bottom right
-                pos.Add(Location.GetRelative(0, -1) ?? Location); // Bottom centre
-                pos.Add(Location.GetRelative(-1, -1) ?? Location); // Bottom left
-                pos.Add(Location.GetRelative(-1, 0) ?? Location); // Middle left
-                // removes any references to current position
-                pos = pos.Where(x => x.Pos != Location.Pos).ToList();
-                // removes any places that can be taken by the opposition
-                if (this.Color == PlayerColor.White)
-                    pos = pos.Where(x => !x.Takable.HasFlag(TakableBy.Black)).ToList();
+                else if (Type == PieceType.Bishop)
+                {
+                    if(Pinned != PinType.NotPinned)
+                    {
+                        errMessage = "Bishop pinned: " + Program.PinString(Pinned);
+                    }
+                    pos = GetDiagonalPositions();
+                }
+                else if (Type == PieceType.Rook)
+                {
+                    if (Pinned != PinType.NotPinned)
+                    {
+                        errMessage = "Bishop pinned: " + Program.PinString(Pinned);
+                    }
+                    pos = GetCrossPositions();
+                }
+                else if (Type == PieceType.Queen)
+                {
+                    if (Pinned != PinType.NotPinned)
+                    {
+                        errMessage = "Bishop pinned: " + Program.PinString(Pinned);
+                    }
+                    pos = GetCrossPositions();
+                    pos.AddRange(GetDiagonalPositions());
+                }
+                else if (Type == PieceType.King)
+                {
+                    pos.Add(Location.GetRelative(-1, 1) ?? Location);  // Top left
+                    pos.Add(Location.GetRelative(0, 1) ?? Location);  // Top centre
+                    pos.Add(Location.GetRelative(1, 1) ?? Location); // Top right
+                    pos.Add(Location.GetRelative(0, 1) ?? Location); // Middle right 
+                    pos.Add(Location.GetRelative(1, -1) ?? Location); // Bottom right
+                    pos.Add(Location.GetRelative(0, -1) ?? Location); // Bottom centre
+                    pos.Add(Location.GetRelative(-1, -1) ?? Location); // Bottom left
+                    pos.Add(Location.GetRelative(-1, 0) ?? Location); // Middle left
+                    // removes any references to current position
+                    pos = pos.Where(x => x.Pos != Location.Pos).ToList();
+                    // removes any places that can be taken by the opposition
+                    if (this.Color == PlayerColor.White)
+                        pos = pos.Where(x => !x.Takable.HasFlag(TakableBy.Black)).ToList();
+                    else
+                        pos = pos.Where(x => !x.Takable.HasFlag(TakableBy.White)).ToList();
+                }
+                else if(Type == PieceType.Knight)
+                { // see issue https://github.com/TheGrandCoding/che-sserver/issues/1 for image
+                    if (Pinned != PinType.NotPinned)
+                    {
+                        errMessage = "Knight pinned: " + Program.PinString(Pinned);
+                    }
+                    int[] up = new int[2] { 0, 2 };
+                    int[] down = new int[2] { 0, -2 };
+                    int[] left = new int[2] { -2, 0 };
+                    int[] right = new int[2] { 2, 0 };
+                    foreach(int[] direction in new List<int[]> { up, down,left,right})
+                    {
+                        if(direction[0] == 0)
+                        { // we havnt changed x-axis, so we look left/right
+                            var leftpos = Location.GetRelative(-1, direction[1]);
+                            var rightpos = Location.GetRelative(1, direction[1]);
+                            if(leftpos != null)
+                                pos.Add(leftpos);
+                            if(rightpos != null)
+                                pos.Add(rightpos);
+                        } else
+                        {
+                            var leftpos = Location.GetRelative(direction[0], 1);
+                            var rightpos = Location.GetRelative(direction[0], -1);
+                            if (leftpos != null)
+                                pos.Add(leftpos);
+                            if (rightpos != null)
+                                pos.Add(rightpos);
+                        }
+                    }
+                }
                 else
-                    pos = pos.Where(x => !x.Takable.HasFlag(TakableBy.White)).ToList();
-            }
-            else
+                { // technically shouldnt get here?
+                    throw new NotImplementedException();
+                }
+            } catch (NotImplementedException){
+                throw;
+            } catch (Exception ex)
             {
-                throw new NotImplementedException();
+                Program.Log($"Move:{this.Location.Pos}", ex);
             }
-            return ReturnValidLocations(pos);
+            return new AttemptMoveResult(ReturnValidLocations(pos), string.IsNullOrWhiteSpace(errMessage), errMessage);
         }
 
         private List<ChessPosition> ReturnValidLocations(IEnumerable<ChessPosition> positions)
@@ -108,21 +171,83 @@ namespace Che_ssServer.Classes
         private List<ChessPosition> GetCrossPositions()
         { // find horizontal and diagonal positions
             var pos = new List<ChessPosition>();
-            for(int x = Location.ColX; x >= 1; x--)
-            {
-                pos.Add(this.Location.GetRelative(Location.ColX - x, 0));
-            }
-            for(int x = Location.ColX; x <= 8; x++)
-            {
-                pos.Add(this.Location.GetRelative(x - Location.ColX, 0));
-            }
-            for (int y = Location.ColY; y >= 1; y--)
-            {
-                pos.Add(this.Location.GetRelative(0, Location.ColY - y));
-            }
-            for (int y = Location.ColY; y <= 8; y++)
-            {
-                pos.Add(this.Location.GetRelative(0, y - Location.ColY));
+            // ---------------------------------------------------------------------------- //
+            // Slightly copy-paste from client code                                         //
+            // So any confusion = check comments in there                                   //
+            // For how the |= and ^= things work, google or check the PinType enum itself   //
+            // ---------------------------------------------------------------------------- //
+
+            var left = new int[2] { 0, -1 };
+            var right = new int[2] { 0, 1 };
+            var up = new int[2] { 1, 0 };
+            var down = new int[2] { -1, 0 };
+            var dirList = new List<int[]>() { left, right, up, down };
+
+            ChessPosition lastValidLocation = null;
+            bool blocked = false;
+            int amountInWay = 0;
+
+            foreach(int[] direction in dirList) {
+                // reset variables
+                lastValidLocation = null;
+                blocked = false;
+                amountInWay = 0;
+                PinType dirPin = direction[0] == 0 ? PinType.Horizontal : PinType.Vertical;
+                for (int i = 1; i <= 8; i++)
+                {
+                    var target = Location.GetRelative(i * direction[0], i * direction[1]);
+                    if (target == null)
+                        continue;
+                    if (target.Pos == Location.Pos)
+                        continue; // refers to *this* location
+                    if (target.Controller != this.Color)
+                    {
+                        if (!blocked && (
+                                this.Pinned == PinType.NotPinned ||
+                                this.Pinned.HasFlag(dirPin)
+                                // if we're not pinned OR ... we are pinned? i am confusion
+                            ))
+                        {
+                            // could move here.
+                            pos.Add(target);
+                            target.Takable = Program.TakeFor(this.Color);
+                            lastValidLocation = target;
+                        }
+
+                        if(target.Controller != this.Color)
+                        {
+                            if(target.PieceHere?.Type == PieceType.King)
+                            {
+                                if (lastValidLocation != null && lastValidLocation.PieceHere != null)
+                                    //                           This  V  is a bitwise operator, for use in the [Flags] thing
+                                    lastValidLocation.PieceHere.Pinned |= dirPin;
+                                break;
+                            } else
+                            {
+                                if(blocked)
+                                {
+                                    if(lastValidLocation != null && lastValidLocation.PieceHere != null)
+                                        lastValidLocation.PieceHere.Pinned &= ~dirPin; // removes ONLY our pin
+                                    /*if (target.PieceHere == null)
+                                        break;*/
+                                }
+                            }
+                        }
+                        if(target.PieceHere != null)
+                        {
+                            amountInWay += 1;
+                            blocked = true;
+                        }
+                    } else
+                    {
+                        break;
+                    }
+                }
+                if(lastValidLocation != null && amountInWay > 2)
+                {
+                    if (lastValidLocation.PieceHere != null)
+                        lastValidLocation.PieceHere.Pinned ^= dirPin; // removes ONLY our pin
+                }
             }
             return ReturnValidLocations(pos);
         }
@@ -136,7 +261,7 @@ namespace Che_ssServer.Classes
         public MoveResult Move(ChessPosition to)
         {
             var positions = this.GetMoveablePositions();
-            if (positions.Contains(to, new ChessPositionEquality()))
+            if (positions.IsSuccess && positions.Locations.Contains(to, new ChessPositionEquality()))
             {
                 var result = MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
                 //                       |
@@ -147,13 +272,37 @@ namespace Che_ssServer.Classes
                 return result;
             } else
             {
-                return MoveResult.FromError(this.Location, to, $"{this.Type} is unable to move to {to.Pos}");
+                if(positions.IsSuccess == false)
+                { // We didnt attempt to find any positions (maybe because we are pinned)
+                    return MoveResult.FromError(this.Location, to, $"{this.Type} prevented from moving: {positions.Message}");
+                } else
+                { // We did find locations, but the given wasnt in the list
+                    return MoveResult.FromError(this.Location, to, $"{this.Type} is unable to move to {to.Pos}: ");
+                }
             }
         }
 
         public override string ToString()
         {
             return $"{Color} {Type}";
+        }
+    }
+
+    public class AttemptMoveResult : IResult
+    {
+        public bool IsSuccess { get; set; }
+
+        public string Message { get; set; }
+
+        public Exception Error => null;
+
+        public IEnumerable<ChessPosition> Locations;
+
+        public AttemptMoveResult(IEnumerable<ChessPosition> locations, bool success, string message)
+        {
+            IsSuccess = success;
+            Message = message;
+            Locations = locations;
         }
     }
 
@@ -189,5 +338,26 @@ namespace Che_ssServer.Classes
         /// </summary>
         Fully = Horizontal | Vertical | DiagonalLeft | DiagonalRight
     }
+    // So how does all this work? well basically:
+    // If a piece is pinned horizontally, then its 'Pinned' variable would have the binary: 0001
+    // If it was *also* pinned diagonally to the right, then its binary would be:           0101
+    // As such, we can use the | operator to 'OR' the binary together, eg:
+    //                  0001
+    //                   OR
+    //                  0100
+    //                  ====
+    //                  0101
+    // The |= is the same as +=, in that you perform the OR, then assign the value to the variable
+    //
+    // The XOR operator ^= is exactly like an XOR operation, in that:
+    //                  0101
+    //                  XOR
+    //                  0001
+    //                  ====
+    //                  0100
+    // Thus, one can use the XOR (^=) to remove a piece from being pinned.
 
+    // To check if a piece is pinned horizontally, could should simply use: PieceHere.Pinned.HasFlag(PinType.Horizontal)
+    //                                          This will check to see if the binary 'flag' is present
+    // If you use == PinType.Horizontal, it will probably not work
 }

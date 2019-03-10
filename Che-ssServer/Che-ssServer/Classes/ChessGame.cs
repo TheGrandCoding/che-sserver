@@ -17,6 +17,8 @@ namespace Che_ssServer.Classes
         public bool HasWhiteGoneFirst { get; protected set; }
         public System.Timers.Timer TickTimer;
 
+        public PlayerColor Winner = PlayerColor.NotControlled; // no winner default
+
         public List<ChessPiece> TakenPieces = new List<ChessPiece>();
 
         public Dictionary<int, GameDelta> PastDeltas = new Dictionary<int, GameDelta>();
@@ -59,18 +61,31 @@ namespace Che_ssServer.Classes
                     {
                         piece = new ChessPiece(PieceType.Pawn, newPosition, player, this);
                     }
-                    if (x == 1 || x == 8)
+                    if(y == 1 || y == 8)
                     {
-                        if (y == 1 || y == 8)
+                        if (x == 1 || x == 8)
                         {
                             piece = new ChessPiece(PieceType.Rook, newPosition, player, this);
                         }
-                    }
-                    if (x == 2 || x == 7)
-                    {
-                        if (y == 1 || y == 8)
+                        else if (x == 2 || x == 7)
                         {
                             piece = new ChessPiece(PieceType.Knight, newPosition, player, this);
+                        }else if (x == 3 || x == 6)
+                        {
+                            piece = new ChessPiece(PieceType.Bishop, newPosition, player, this);
+                        } else if(x == 4 && y == 1)
+                        {
+                            piece = new ChessPiece(PieceType.King, newPosition, player, this);
+                        } else if(x == 4 && y == 8)
+                        {
+                            piece = new ChessPiece(PieceType.Queen, newPosition, player, this);
+                        }else if (x == 5 && y == 1)
+                        {
+                            piece = new ChessPiece(PieceType.Queen, newPosition, player, this);
+                        }
+                        else if(x == 5 && y == 8)
+                        {
+                            piece = new ChessPiece(PieceType.King, newPosition, player, this);
                         }
                     }
                     var pos = new ChessPosition(x, y, this, piece);
@@ -102,11 +117,17 @@ namespace Che_ssServer.Classes
             string message = newDelta.GetDelta();
             White.Send("GAME:" + message);
             Black.Send("GAME:" + message);
+            EvaluateBoard();
         }
 
         int timerTicks = 0;
         private void timerTick(object sender, ElapsedEventArgs e)
         {
+            if(Winner != PlayerColor.NotControlled)
+            {
+                TickTimer.Stop();
+                timerTicks = 100; // forces one final sync
+            }
             timerTicks++;
             if(CurrentlyWaitingFor.Color == PlayerColor.White)
             {
@@ -140,7 +161,7 @@ namespace Che_ssServer.Classes
 
         private bool SharedActions(Player player, Player opposite, PlayerColor color, string message)
         {
-            if(message.StartsWith("MOVE:"))
+            if(message.StartsWith("MOVE:") && Winner == PlayerColor.NotControlled)
             { // expected: "MOVE:[from]:[to]"
                 var split = message.Split(':');
                 ChessPosition from = GetLocation(split[1]);
@@ -176,6 +197,7 @@ namespace Che_ssServer.Classes
             }
             else if(message == "RESIGN")
             {
+                Winner = opposite.Color;
                 player.Send("LOSE:RESIGN");
                 opposite.Send("WIN:RESIGN");
             } else
@@ -224,7 +246,8 @@ namespace Che_ssServer.Classes
             foreach(var pos in Board)
             {
                 pos.Takable = TakableBy.None; // reset
-                pos.PieceHere.Pinned = PinType.NotPinned;
+                if(pos.PieceHere != null)
+                    pos.PieceHere.Pinned = PinType.NotPinned;
             }
 
             foreach(var piece in AllPieces)
@@ -232,7 +255,7 @@ namespace Che_ssServer.Classes
                 if (piece.Taken)
                     continue;
                 var locations = piece.GetMoveablePositions();
-                foreach(var loc in locations)
+                foreach(var loc in locations.Locations)
                 {
                     loc.Takable |= Program.TakeFor(piece.Color);
                 }
