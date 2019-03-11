@@ -255,6 +255,78 @@ namespace Che_ssServer.Classes
         private List<ChessPosition> GetDiagonalPositions()
         {
             var pos = new List<ChessPosition>();
+            ChessPosition lastValidPosition = null;
+            bool blocked = false;
+            int amountInWay = 0;
+
+            int[] rightUp = new int[2] { 1, 1 }; // /
+            int[] rightDown = new int[2] { -1, 1 }; // \
+            int[] leftDown = new int[2] { -1, -1 }; // /
+            int[] leftUp = new int[2] { 1, -1 };
+
+            foreach(int[] direction in new List<int[]>() { rightUp, rightDown, leftDown, leftUp})
+            {
+                lastValidPosition = null;
+                blocked = false;
+                amountInWay = 0;
+                PinType pin = direction[0] - direction[1] == 0 ? PinType.DiagonalLeft : PinType.DiagonalRight;
+
+                for(int i = 1; i<=8; i++)
+                {
+                    var target = Location.GetRelative(i * direction[0], i * direction[1]);
+                    if (target == null)
+                        continue;
+                    if (target.Pos == this.Location.Pos)
+                        continue;
+                    if(target.Controller != this.Color)
+                    {
+                        if(!blocked && 
+                            (
+                                this.Pinned == PinType.NotPinned ||
+                                this.Pinned == pin
+                            ))
+                        {
+                            pos.Add(target);
+                            lastValidPosition = target;
+                        }
+                        if(target.Controller != this.Color)
+                        {
+                            try
+                            {
+                                if(target.PieceHere != null && target.PieceHere.Type == PieceType.King)
+                                {
+                                    if(lastValidPosition != null && lastValidPosition.PieceHere != null)
+                                    {
+                                        lastValidPosition.PieceHere.Pinned = pin;
+                                        break;
+                                    } else
+                                    {
+                                        if(blocked)
+                                        {
+                                            lastValidPosition.PieceHere.Pinned &= ~pin;
+                                        }
+                                    }
+                                }
+                            } catch { }
+                        }
+                        if(target.PieceHere != null)
+                        {
+                            amountInWay += 1;
+                            blocked = true;
+                        } else
+                        {
+                            break;
+                        }
+                    }
+                }
+                if(lastValidPosition != null)
+                {
+                    if(amountInWay >= 2)
+                    {
+                        lastValidPosition.PieceHere.Pinned &= ~pin;
+                    }
+                }
+            }
             return pos;
         }
 

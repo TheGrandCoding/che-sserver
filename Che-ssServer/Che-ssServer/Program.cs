@@ -24,7 +24,7 @@ namespace Che_ssServer
         public static TcpListener Listener;
 
         public static MasterlistDLL.MasterlistServer Masterlist;
-        public static bool MasterlistEnabled { get; protected set; } = false;
+        public static bool MasterlistEnabled { get; protected set; } = true;
 
         static void Main(string[] args)
         {
