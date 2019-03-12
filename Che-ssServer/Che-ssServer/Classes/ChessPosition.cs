@@ -106,7 +106,7 @@ namespace Che_ssServer.Classes
         /// <summary>
         /// Location could be taken by a black player
         /// </summary>
-        Black= 0b11,
+        Black= 0b10,
         /// <summary>
         /// Location could be taken by either player
         /// </summary>

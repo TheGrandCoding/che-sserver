@@ -99,11 +99,11 @@ namespace Che_ssServer.Classes
                     pos.Add(Location.GetRelative(-1, 1) ?? Location);  // Top left
                     pos.Add(Location.GetRelative(0, 1) ?? Location);  // Top centre
                     pos.Add(Location.GetRelative(1, 1) ?? Location); // Top right
-                    pos.Add(Location.GetRelative(0, 1) ?? Location); // Middle right 
                     pos.Add(Location.GetRelative(1, -1) ?? Location); // Bottom right
                     pos.Add(Location.GetRelative(0, -1) ?? Location); // Bottom centre
                     pos.Add(Location.GetRelative(-1, -1) ?? Location); // Bottom left
                     pos.Add(Location.GetRelative(-1, 0) ?? Location); // Middle left
+                    pos.Add(Location.GetRelative(1, 0) ?? Location); // Middle right 
                     // removes any references to current position
                     pos = pos.Where(x => x.Pos != Location.Pos).ToList();
                     // removes any places that can be taken by the opposition
@@ -192,7 +192,7 @@ namespace Che_ssServer.Classes
                 lastValidLocation = null;
                 blocked = false;
                 amountInWay = 0;
-                PinType dirPin = direction[0] == 0 ? PinType.Horizontal : PinType.Vertical;
+                PinType wePinWith = direction[0] == 0 ? PinType.Vertical : PinType.Horizontal;
                 for (int i = 1; i <= 8; i++)
                 {
                     var target = Location.GetRelative(i * direction[0], i * direction[1]);
@@ -204,7 +204,7 @@ namespace Che_ssServer.Classes
                     {
                         if (!blocked && (
                                 this.Pinned == PinType.NotPinned ||
-                                this.Pinned.HasFlag(dirPin)
+                                this.Pinned.HasFlag(wePinWith)
                                 // if we're not pinned OR ... we are pinned? i am confusion
                             ))
                         {
@@ -220,14 +220,14 @@ namespace Che_ssServer.Classes
                             {
                                 if (lastValidLocation != null && lastValidLocation.PieceHere != null)
                                     //                           This  V  is a bitwise operator, for use in the [Flags] thing
-                                    lastValidLocation.PieceHere.Pinned |= dirPin;
+                                    lastValidLocation.PieceHere.Pinned |= wePinWith;
                                 break;
                             } else
                             {
                                 if(blocked)
                                 {
                                     if(lastValidLocation != null && lastValidLocation.PieceHere != null)
-                                        lastValidLocation.PieceHere.Pinned &= ~dirPin; // removes ONLY our pin
+                                        lastValidLocation.PieceHere.Pinned &= ~wePinWith; // removes ONLY our pin
                                     /*if (target.PieceHere == null)
                                         break;*/
                                 }
@@ -246,7 +246,7 @@ namespace Che_ssServer.Classes
                 if(lastValidLocation != null && amountInWay > 2)
                 {
                     if (lastValidLocation.PieceHere != null)
-                        lastValidLocation.PieceHere.Pinned ^= dirPin; // removes ONLY our pin
+                        lastValidLocation.PieceHere.Pinned ^= wePinWith; // removes ONLY our pin
                 }
             }
             return ReturnValidLocations(pos);
@@ -269,9 +269,9 @@ namespace Che_ssServer.Classes
                 lastValidPosition = null;
                 blocked = false;
                 amountInWay = 0;
-                PinType pin = direction[0] - direction[1] == 0 ? PinType.DiagonalLeft : PinType.DiagonalRight;
+                PinType wePinWith = direction[0] - direction[1] == 0 ? PinType.DiagonalRight : PinType.DiagonalLeft;
 
-                for(int i = 1; i<=8; i++)
+                for (int i = 1; i<=8; i++)
                 {
                     var target = Location.GetRelative(i * direction[0], i * direction[1]);
                     if (target == null)
@@ -283,7 +283,7 @@ namespace Che_ssServer.Classes
                         if(!blocked && 
                             (
                                 this.Pinned == PinType.NotPinned ||
-                                this.Pinned == pin
+                                this.Pinned == wePinWith
                             ))
                         {
                             pos.Add(target);
@@ -297,22 +297,22 @@ namespace Che_ssServer.Classes
                                 {
                                     if(lastValidPosition != null && lastValidPosition.PieceHere != null)
                                     {
-                                        lastValidPosition.PieceHere.Pinned = pin;
+                                        lastValidPosition.PieceHere.Pinned = wePinWith;
                                         break;
                                     } else
                                     {
                                         if(blocked)
                                         {
-                                            lastValidPosition.PieceHere.Pinned &= ~pin;
+                                            lastValidPosition.PieceHere.Pinned &= ~wePinWith;
                                         }
                                     }
                                 }
                             } catch { }
-                        }
-                        if(target.PieceHere != null)
-                        {
-                            amountInWay += 1;
-                            blocked = true;
+                            if (target.PieceHere != null)
+                            {
+                                amountInWay += 1;
+                                blocked = true;
+                            }
                         } else
                         {
                             break;
@@ -323,7 +323,7 @@ namespace Che_ssServer.Classes
                 {
                     if(amountInWay >= 2)
                     {
-                        lastValidPosition.PieceHere.Pinned &= ~pin;
+                        lastValidPosition.PieceHere.Pinned &= ~wePinWith;
                     }
                 }
             }

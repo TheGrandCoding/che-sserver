@@ -17,6 +17,10 @@ namespace Che_ssServer.Classes
         public bool HasWhiteGoneFirst { get; protected set; }
         public System.Timers.Timer TickTimer;
 
+        public event EventHandler<ChessGameWonEventArgs> GameOver;
+
+
+        public Player WinnerPlayer => Winner == PlayerColor.White ? White : Black;
         public PlayerColor Winner = PlayerColor.NotControlled; // no winner default
 
         public List<ChessPiece> TakenPieces = new List<ChessPiece>();
@@ -198,8 +202,7 @@ namespace Che_ssServer.Classes
             else if(message == "RESIGN")
             {
                 Winner = opposite.Color;
-                player.Send("LOSE:RESIGN");
-                opposite.Send("WIN:RESIGN");
+                GameOver?.Invoke(this, new ChessGameWonEventArgs(this, opposite, player, "RESIGN"));
             } else
             { 
                 // not handled
@@ -279,6 +282,21 @@ namespace Che_ssServer.Classes
             int x = Program.StrToX(pos.Substring(0, 1));
             int y = int.Parse(pos.Substring(1));
             return Board[x - 1, y - 1];
+        }
+    }
+
+    public class ChessGameWonEventArgs : EventArgs
+    {
+        public ChessGame Game;
+        public Player Winner;
+        public Player Loser;
+        public string Reason;
+        public ChessGameWonEventArgs(ChessGame game, Player win, Player loss, string reason)
+        {
+            Game = game;
+            Winner = win;
+            Loser = loss;
+            Reason = reason;
         }
     }
 }

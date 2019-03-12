@@ -24,7 +24,7 @@ namespace Che_ssServer
         public static TcpListener Listener;
 
         public static MasterlistDLL.MasterlistServer Masterlist;
-        public static bool MasterlistEnabled { get; protected set; } = true;
+        public static bool MasterlistEnabled { get; protected set; } = false;
 
         static void Main(string[] args)
         {
@@ -34,6 +34,7 @@ namespace Che_ssServer
             thread.Start();
             Game = new ChessGame();
             Log("Listening on: " + Listener.LocalEndpoint.ToString(), LogSeverity.Debug);
+            Log("Server IP: " + GetLocalIPAddress(), LogSeverity.Info);
             try
             {
                 if (!MasterlistEnabled)
@@ -127,6 +128,7 @@ namespace Che_ssServer
                     Game.Black = user;
                     Log($"{user.Name} is Black, game starting", LogSeverity.Info, "Game");
                     Game.StartUp();
+                    Game.GameOver += HandleGameOver;
                 }
             }
         }
@@ -196,6 +198,27 @@ namespace Che_ssServer
 
         public static void Log(string source, Exception ex) => LoggingService.OnLogAsync(new LogMessage(LogSeverity.Error, source, "", ex));
 
+        public static string GetLocalIPAddress()
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    return ip.ToString();
+                }
+            }
+            throw new Exception("No network adapters with an IPv4 address in the system!");
+        }
+
+        #region Tournament
+        public static void HandleGameOver(object sender, ChessGameWonEventArgs e)
+        {
+            Log($"{e.Winner.Name} won vs {e.Loser.Name}", LogSeverity.Info);
+            e.Winner.Send($"WIN:{e.Reason}");
+            e.Loser.Send($"LOSE:{e.Reason}");
+        }
+        #endregion
     }
 
     public class ChessPositionEquality : IEqualityComparer<ChessPosition>
