@@ -57,6 +57,7 @@
     <Compile Include="Classes\Connection.cs" />
     <Compile Include="Classes\PieceType.cs" />
     <Compile Include="Classes\Player.cs" />
+    <Compile Include="Classes\Spectator.cs" />
     <Compile Include="Helpers\ChessEntity.cs" />
     <Compile Include="Helpers\GameDelta.cs" />
     <Compile Include="Helpers\IResult.cs" />

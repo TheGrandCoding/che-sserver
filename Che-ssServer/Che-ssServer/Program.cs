@@ -118,17 +118,27 @@ namespace Che_ssServer
                 }
                 dataFromClient = dataFromClient.Substring(1, dataFromClient.LastIndexOf("`") - 1);
                 Log("New Player " + dataFromClient + " @ " + ipEnd.ToString(), LogSeverity.Info, "Server");
-                Player user = new Player(dataFromClient, clientSocket);
-                if(Game.White ==null)
+                if(Game.White == null || Game.Black == null)
                 {
-                    Game.White = user;
-                    Log($"{user.Name} is White", LogSeverity.Info, "Game");
+                    Player user = new Player(dataFromClient, clientSocket);
+                    user.GameIn = Game;
+                    if (Game.White == null)
+                    {
+                        Game.White = user;
+                        Log($"{user.Name} is White", LogSeverity.Info, "Game");
+                    }
+                    else
+                    {
+                        Game.Black = user;
+                        Log($"{user.Name} is Black, game starting", LogSeverity.Info, "Game");
+                        Game.StartUp();
+                        Game.GameOver += HandleGameOver;
+                    }
                 } else
-                {
-                    Game.Black = user;
-                    Log($"{user.Name} is Black, game starting", LogSeverity.Info, "Game");
-                    Game.StartUp();
-                    Game.GameOver += HandleGameOver;
+                { // both players filled, so we spectate
+                    Spectator spec = new Spectator(dataFromClient, clientSocket);
+                    spec.GameIn = Game;
+                    Game.Spectators.Add(spec);
                 }
             }
         }

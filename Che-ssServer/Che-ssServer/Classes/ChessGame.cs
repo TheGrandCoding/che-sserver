@@ -25,6 +25,8 @@ namespace Che_ssServer.Classes
 
         public List<ChessPiece> TakenPieces = new List<ChessPiece>();
 
+        public List<Spectator> Spectators = new List<Spectator>();
+
         public Dictionary<int, GameDelta> PastDeltas = new Dictionary<int, GameDelta>();
 
         public List<ChessPiece> AllPieces = new List<ChessPiece>();
@@ -113,6 +115,11 @@ namespace Che_ssServer.Classes
             BroadCastDeltas();
         }
 
+        /// <summary>
+        /// Sends both players a list of things that have changed since the last delta.
+        /// This means that less stuff is sent as not all of it needs to be re-sent if
+        /// it was sent in the last delta.
+        /// </summary>
         public void BroadCastDeltas()
         {
             var lastDelta = PastDeltas.Count > 0 ? PastDeltas.Values.LastOrDefault() : null;
@@ -121,7 +128,6 @@ namespace Che_ssServer.Classes
             string message = newDelta.GetDelta();
             White.Send("GAME:" + message);
             Black.Send("GAME:" + message);
-            EvaluateBoard();
         }
 
         int timerTicks = 0;
@@ -157,12 +163,17 @@ namespace Che_ssServer.Classes
                 CurrentlyWaitingFor = Black;
             else
                 CurrentlyWaitingFor = White;
-            /*string message = $"PLY:{CurrentlyWaitingFor.Color};{WhiteTime};{BlackTime}";
-            White.Send(message); // send both who's turn it is to go next
-            Black.Send(message); // and also sync the timers across both clients*/
             BroadCastDeltas();
         }
 
+        /// <summary>
+        /// Execute actions that can be done by either player WHILE IT IS THEIR TURN
+        /// </summary>
+        /// <param name="player">Player who's turn it currently is</param>
+        /// <param name="opposite">The other player who is currently out of turn</param>
+        /// <param name="color">The colour of the player currently going</param>
+        /// <param name="message">The message recieved</param>
+        /// <returns></returns>
         private bool SharedActions(Player player, Player opposite, PlayerColor color, string message)
         {
             if(message.StartsWith("MOVE:") && Winner == PlayerColor.NotControlled)
@@ -188,22 +199,70 @@ namespace Che_ssServer.Classes
                             TickTimer.Start();
                         }
                         opposite.Send($"OTH/MOVE:{from.Pos}:{to.Pos}");
-                        SwitchPlayers();
+                        if(to.PieceHere.Type == PieceType.Pawn && (to.Y == 1 || to.Y == 8))
+                        { // they need to promote their pawn before we can switch
+                        } else
+                        {
+                            SwitchPlayers();
+                        }
+                        EvaluateBoard(); // Only re-evaluate if significantly changed (ie: moved)
                     }
                     else
                     {
                         player.Send($"RES/MOVE/ERR:{from.Pos}:{to.Pos}:{result.Message}");
                     }
-                } else
+                } 
+                else
                 {
                     player.Send($"RES/MOVE/ERR:{from.Pos}:{to.Pos}:No piece on that square");
                 }
             }
-            else if(message == "RESIGN")
+            else if (message.StartsWith("PROMOTE:"))
             {
-                Winner = opposite.Color;
-                GameOver?.Invoke(this, new ChessGameWonEventArgs(this, opposite, player, "RESIGN"));
-            } else
+                message = message.Substring("PROMOTE:".Length);
+                string[] split = message.Split(';');
+                var target = GetLocation(split[0]);
+                if(target != null)
+                {
+                    if(target.Y == 8 || target.Y == 1)
+                    {
+                        if (int.TryParse(split[1], out int id))
+                        {
+                            PieceType piece = (PieceType)id;
+                            if (target.PieceHere != null && target.PieceHere.Type == PieceType.Pawn)
+                            {
+                                if (piece != PieceType.King && piece != PieceType.Pawn)
+                                {
+                                    target.PieceHere.Type = piece;
+                                    player.Send($"RES/PROMOTE/SUC:Promoted {target.Pos} to {piece.ToString()}");
+                                    opposite.Send($"OTH/PROMOTE:{target.Pos}:{(int)piece}");
+                                    SwitchPlayers(); // since we were waiting for this
+                                    EvaluateBoard(); // Only re-evaluate if significantly changed (ie: promoted)
+                                }
+                                else
+                                {
+                                    player.Send($"RES/PROMOTE/ERR:Unable to promote to: {piece.ToString()}");
+                                }
+                            }
+                            else
+                            {
+                                player.Send($"RES/PROMOTE/ERR:No pawn at {target.Pos}");
+                            }
+                        }
+                        else
+                        {
+                            player.Send($"RES/PROMOTE/ERR:Unknown piece type: {split[1]}");
+                        }
+                    } else
+                    {
+                        player.Send($"RES/PROMOTE/ERR:Invalid row, must be at final row of enemy line");
+                    }
+                } else
+                {
+                    player.Send($"RES/PROMOTE/ERR:Unknown or invalid location: {split[0]}");
+                }
+            }
+            else
             { 
                 // not handled
                 return false;
@@ -212,32 +271,64 @@ namespace Che_ssServer.Classes
             return true;
         }
 
+        /// <summary>
+        /// Execute actions at any point in time, even if 'out of turn'
+        /// </summary>
+        /// <param name="player">Player who sent the message</param>
+        /// <param name="opposite">Opposition player</param>
+        /// <param name="colour">Colour of sender</param>
+        /// <param name="message">Message that was recieved</param>
+        /// <returns></returns>
+        private bool SharedPermenantActions(Player player, Player opposite, PlayerColor colour, string message)
+        {
+            if (message == "RESIGN")
+            {
+                Winner = opposite.Color;
+                GameOver?.Invoke(this, new ChessGameWonEventArgs(this, opposite, player, "RESIGN"));
+            } else
+            { // Unknown message, so wasn't handled here.
+                return false;
+            }
+            return true;
+        }
+
         private void Black_RecievedMessage(object sender, string e)
         {
-            if(CurrentlyWaitingFor == Black)
+            if(SharedPermenantActions(Black, White, PlayerColor.Black, e))
+            { // message was handled by this
+            } else
             {
-                if(SharedActions(Black, White, PlayerColor.Black, e))
-                { // it was a shared action, and was handled.
-                } else
+                if(CurrentlyWaitingFor == Black)
                 {
-                    // some other action
+                    if(SharedActions(Black, White, PlayerColor.Black, e))
+                    { // it was a shared action, and was handled.
+                    } else
+                    {
+                        // some other action
+                    }
+                    BroadCastDeltas();
                 }
-                BroadCastDeltas();
             }
         }
 
         private void White_RecievedMessage(object sender, string e)
         {
-            if(CurrentlyWaitingFor == White)
+            if (SharedPermenantActions(White, Black, PlayerColor.White, e))
+            { // handled
+            }
+            else
             {
-                if (SharedActions(White, Black, PlayerColor.White, e))
-                { // it was a shared action, and was handled.
-                }
-                else
+                if (CurrentlyWaitingFor == White)
                 {
-                    // some other action
+                    if (SharedActions(White, Black, PlayerColor.White, e))
+                    { // it was a shared action, and was handled.
+                    }
+                    else
+                    {
+                        // some other action
+                    }
+                    BroadCastDeltas();
                 }
-                BroadCastDeltas();
             }
         }
 
@@ -282,6 +373,18 @@ namespace Che_ssServer.Classes
             int x = Program.StrToX(pos.Substring(0, 1));
             int y = int.Parse(pos.Substring(1));
             return Board[x - 1, y - 1];
+        }
+
+        public void WinFromDisconnect(Player disconnect)
+        {
+            if(disconnect.Name == White.Name)
+            {
+                Winner = PlayerColor.Black;
+            } else
+            {
+                Winner = PlayerColor.White;
+            }
+            GameOver?.Invoke(this, new ChessGameWonEventArgs(this, WinnerPlayer, disconnect, "LEFT"));
         }
     }
 

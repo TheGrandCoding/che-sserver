@@ -24,6 +24,8 @@ namespace Che_ssServer.Classes
         private bool disconnectedfunctioncalled = false;
         public Thread recicivedataThread;
 
+        public ChessGame GameIn;
+
         public Connection(string name, TcpClient client)
         {
             Name = name;

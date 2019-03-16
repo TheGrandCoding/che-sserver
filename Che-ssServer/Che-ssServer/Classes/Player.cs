@@ -21,6 +21,10 @@ namespace Che_ssServer.Classes
 
         public override void HandleDisconnectLogic(bool kicked)
         {
+            if(this.GameIn != null)
+            {
+                this.GameIn.WinFromDisconnect(this);
+            }
         }
 
         public override void LogSendMessage(string message)
