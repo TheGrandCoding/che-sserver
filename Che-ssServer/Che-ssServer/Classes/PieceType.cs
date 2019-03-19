@@ -13,6 +13,8 @@ namespace Che_ssServer.Classes
         Rook,
         Knight,
         Queen,
-        King
+        King,
+        // DLC
+        Barrier
     }
 }

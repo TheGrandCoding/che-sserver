@@ -13,6 +13,9 @@ namespace Che_ssServer.Classes
     {
         [JsonProperty]
         public PieceType Type;
+
+        public bool WasPromoted;
+
         public ChessPosition Location;
         public PlayerColor Color;
         public PinType Pinned;
@@ -21,13 +24,12 @@ namespace Che_ssServer.Classes
 
         public bool Taken => Location == null;
 
-
         public ChessPiece(PieceType type, ChessPosition pos, PlayerColor color, ChessGame game) : base(game)
         {
             Type = type; Location = pos; Color = color;
         }
 
-        public AttemptMoveResult GetMoveablePositions()
+        public AttemptMoveResult GetMoveablePositions(bool dontRemoveOwnColor = false)
         {
             List<ChessPosition> pos = new List<ChessPosition>();
             string errMessage = "";
@@ -142,6 +144,14 @@ namespace Che_ssServer.Classes
                                 pos.Add(rightpos);
                         }
                     }
+                } else if(Type == PieceType.Barrier)
+                {
+                    pos.Add(Location.GetRelative(0, 1) ?? Location);  // up
+                    pos.Add(Location.GetRelative(0, -1) ?? Location); // down
+                    pos.Add(Location.GetRelative(-1, 0) ?? Location); // left
+                    pos.Add(Location.GetRelative(1, 0) ?? Location); // right 
+                    // removes any references to current position
+                    pos = pos.Where(x => x.Pos != Location.Pos).ToList();
                 }
                 else
                 { // technically shouldnt get here?
@@ -153,7 +163,7 @@ namespace Che_ssServer.Classes
             {
                 Program.Log($"Move:{this.Location.Pos}", ex);
             }
-            return new AttemptMoveResult(ReturnValidLocations(pos), string.IsNullOrWhiteSpace(errMessage), errMessage);
+            return new AttemptMoveResult(dontRemoveOwnColor ? pos : ReturnValidLocations(pos), string.IsNullOrWhiteSpace(errMessage), errMessage);
         }
 
         private List<ChessPosition> ReturnValidLocations(IEnumerable<ChessPosition> positions)
@@ -335,6 +345,13 @@ namespace Che_ssServer.Classes
             var positions = this.GetMoveablePositions();
             if (positions.IsSuccess && positions.Locations.Contains(to, new ChessPositionEquality()))
             {
+                if (to.PieceHere != null)
+                {
+                    if(to.PieceHere.Type == PieceType.Barrier)
+                        return MoveResult.FromError(this.Location, to, $"{this.Type} is unable to take Barrier piece.");
+                    if (this.Type == PieceType.Barrier)
+                        return MoveResult.FromError(this.Location, to, $"Barrier is unable to take any pieces");
+                }
                 var result = MoveResult.FromSuccess(this.Location, to, $"{Location.Pos} to {to.Pos}");
                 //                       |
                 // needs to be before as V cannot be null

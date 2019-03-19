@@ -234,6 +234,7 @@ namespace Che_ssServer.Classes
                                 if (piece != PieceType.King && piece != PieceType.Pawn)
                                 {
                                     target.PieceHere.Type = piece;
+                                    target.PieceHere.WasPromoted = true;
                                     player.Send($"RES/PROMOTE/SUC:Promoted {target.Pos} to {piece.ToString()}");
                                     opposite.Send($"OTH/PROMOTE:{target.Pos}:{(int)piece}");
                                     SwitchPlayers(); // since we were waiting for this
@@ -332,6 +333,33 @@ namespace Che_ssServer.Classes
             }
         }
 
+        private WinType CheckWin()
+        { // TODO refactor
+            var whitePieces = AllPieces.Where(x => x.Color == PlayerColor.White);
+            var blackPieces = AllPieces.Where(x => x.Color == PlayerColor.Black);
+
+            var survivingWhite = whitePieces.Where(x => !x.Taken);
+            var survivingBlack = blackPieces.Where(x => !x.Taken);
+
+            var whiteKing = whitePieces.FirstOrDefault(x => x.Type == PieceType.King);
+            var blackKing = blackPieces.FirstOrDefault(x => x.Type == PieceType.King);
+
+            if (whiteKing == null || whiteKing.Taken)
+                return WinType.Black | WinType.NoKing;
+            if (blackKing == null || blackKing.Taken)
+                return WinType.White | WinType.NoKing;
+
+            // TODO: this probably won't check if the self-color pieces are pinned.
+            var whiteKingMoves = whiteKing.GetMoveablePositions(true); // already checks takable
+            if (!whiteKingMoves.IsSuccess || whiteKingMoves.Locations.Count() == 0)
+                return WinType.Black | WinType.CheckMate;
+            var blackKingMoves = blackKing.GetMoveablePositions(true);
+            if (!blackKingMoves.IsSuccess || blackKingMoves.Locations.Count() == 0)
+                return WinType.White | WinType.CheckMate;
+
+            return WinType.NoWin;
+        }
+
         /// <summary>
         /// Goes through each piece and determines what square it can take, and if anyone has won.
         /// </summary>
@@ -353,6 +381,29 @@ namespace Che_ssServer.Classes
                 {
                     loc.Takable |= Program.TakeFor(piece.Color);
                 }
+            }
+
+
+            var win = CheckWin();
+            if(win != WinType.NoWin)
+            {
+                Player winner;
+                Player opposite;
+                if(win.HasFlag(WinType.White))
+                {
+                    winner = White; opposite = Black;
+                } else
+                {
+                    winner = Black; opposite = White;
+                }
+                string reason = ":";
+                if (win.HasFlag(WinType.NoKing))
+                    reason += "NOKING";
+                else if(win.HasFlag(WinType.CheckMate))
+                    reason += "CHECKMATE";
+                winner.Send("WIN" + reason);
+                opposite.Send("LOSE" + reason);
+                Winner = winner.Color;
             }
 
         }
@@ -386,6 +437,16 @@ namespace Che_ssServer.Classes
             }
             GameOver?.Invoke(this, new ChessGameWonEventArgs(this, WinnerPlayer, disconnect, "LEFT"));
         }
+    }
+
+    enum WinType
+    {
+        NoWin     = 0,
+        White     = 0b0001,
+        Black     = 0b0010,
+        CheckMate = 0b0100,
+        NoKing    = 0b1000,
+        Draw      = White | Black,
     }
 
     public class ChessGameWonEventArgs : EventArgs
