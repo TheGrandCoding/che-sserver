@@ -199,7 +199,14 @@ namespace Che_ssServer.Classes
                             TickTimer.Start();
                         }
                         opposite.Send($"OTH/MOVE:{from.Pos}:{to.Pos}");
-                        if(to.PieceHere.Type == PieceType.Pawn && (to.Y == 1 || to.Y == 8))
+                        if (result.PieceTook.Type == PieceType.King)
+                        {
+                            // took a king, so game ends.
+                            Winner = result.PieceTook.Color;
+                            GameOver?.Invoke(this, new ChessGameWonEventArgs(this, WinnerPlayer, White == WinnerPlayer ? Black : White, "NOKING"));
+                            return true; // we dont/cant evaluate any further, since the game has ended.
+                        }
+                        if (to.PieceHere.Type == PieceType.Pawn && (to.Y == 1 || to.Y == 8))
                         { // they need to promote their pawn before we can switch
                         } else
                         {
@@ -385,7 +392,7 @@ namespace Che_ssServer.Classes
 
 
             var win = CheckWin();
-            if(win != WinType.NoWin)
+            if(win != WinType.NoWin && Winner == PlayerColor.NotControlled)
             {
                 Player winner;
                 Player opposite;
@@ -396,14 +403,13 @@ namespace Che_ssServer.Classes
                 {
                     winner = Black; opposite = White;
                 }
-                string reason = ":";
+                string reason = "";
                 if (win.HasFlag(WinType.NoKing))
                     reason += "NOKING";
                 else if(win.HasFlag(WinType.CheckMate))
                     reason += "CHECKMATE";
-                winner.Send("WIN" + reason);
-                opposite.Send("LOSE" + reason);
                 Winner = winner.Color;
+                this.GameOver?.Invoke(this, new ChessGameWonEventArgs(this, winner, opposite, reason));
             }
 
         }
