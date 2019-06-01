@@ -29,8 +29,10 @@ Please provide the version that you were using
 **Additional context**
 Add any other context about the problem here.
 
-***YOU MUST GIVE A LOG***
+***YOU MUST GIVE A LOG***  
+**If game-logic error:** you must run the `/save` command on the server, then provide the text it gives you - or upload the `savedgame.txt` file it creates
 
 Please tick:
 - [ ] I have attached the server log file
 - [ ] If applicable, I have attached the client log(s)
+- [ ] I have provided the `savedgame.txt` file, after running the `/save` command
