@@ -60,7 +60,7 @@ namespace Che_ssServer.Services
                         break;
                     case LogSeverity.Verbose:
                     case LogSeverity.Debug:
-                        if (Program.BOT_DEBUG)
+                        if (Program.CHS_DEBUG)
                         {
                             Console.ForegroundColor = ConsoleColor.DarkGray;
                         }

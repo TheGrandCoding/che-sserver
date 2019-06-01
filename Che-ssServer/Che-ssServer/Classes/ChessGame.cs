@@ -1,4 +1,5 @@
 ﻿using Che_ssServer.Helpers;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -199,14 +200,14 @@ namespace Che_ssServer.Classes
                             TickTimer.Start();
                         }
                         opposite.Send($"OTH/MOVE:{from.Pos}:{to.Pos}");
-                        if (result.PieceTook.Type == PieceType.King)
+                        if (result?.PieceTook?.Type == PieceType.King)
                         {
                             // took a king, so game ends.
                             Winner = result.PieceTook.Color;
                             GameOver?.Invoke(this, new ChessGameWonEventArgs(this, WinnerPlayer, White == WinnerPlayer ? Black : White, "NOKING"));
                             return true; // we dont/cant evaluate any further, since the game has ended.
                         }
-                        if (to.PieceHere.Type == PieceType.Pawn && (to.Y == 1 || to.Y == 8))
+                        if (to?.PieceHere?.Type == PieceType.Pawn && (to.Y == 1 || to.Y == 8))
                         { // they need to promote their pawn before we can switch
                         } else
                         {
@@ -376,10 +377,13 @@ namespace Che_ssServer.Classes
             {
                 pos.Takable = TakableBy.None; // reset
                 if(pos.PieceHere != null)
+                {
                     pos.PieceHere.Pinned = PinType.NotPinned;
+                    pos.PieceHere.AllPins = new List<Pins>();
+                }
             }
 
-            foreach(var piece in AllPieces)
+            foreach (var piece in AllPieces)
             {
                 if (piece.Taken)
                     continue;
@@ -442,6 +446,32 @@ namespace Che_ssServer.Classes
                 Winner = PlayerColor.White;
             }
             GameOver?.Invoke(this, new ChessGameWonEventArgs(this, WinnerPlayer, disconnect, "LEFT"));
+        }
+
+        /// <summary>
+        /// Gets a string that represents a save of the game
+        /// </summary>
+        /// <returns>A JSON string</returns>
+        public string ToSave()
+        {
+            var gameDelta = new JsonGameDelta();
+            gameDelta.black = Black.Name;
+            gameDelta.white = White.Name;
+            gameDelta.whiteTime = WhiteTime.ToString();
+            gameDelta.blackTime = BlackTime.ToString();
+            gameDelta.color = CurrentlyWaitingFor.Color;
+            gameDelta.ID = -1; // indicates a save
+            var jsonObject = JObject.FromObject(gameDelta);
+            Dictionary<string, string[]> board = new Dictionary<string, string[]>();
+            foreach(var item in Board)
+            {
+                string[] array = new string[] { };
+                if (item.PieceHere != null)
+                    array = new string[] { item.PieceHere.Type.ToString(), item.PieceHere.Color.ToString() };
+                board.Add(item.Pos, array);
+            }
+            jsonObject.Add("board", JToken.FromObject(board));
+            return jsonObject.ToString();
         }
     }
 

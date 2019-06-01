@@ -8,17 +8,31 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Reflection;
+using System.Net.Http;
+using Newtonsoft.Json.Linq;
 
+[assembly: AssemblyVersion("0.0.1")]
+// Naming scheme - Major.Minor.Build
+// Server should refuse connection if Major OR Minor are out of sync
+// Build should not be considered
 namespace Che_ssServer
 {
     public class Program
     {
         public const string MAIN_PATH = "";
 #if DEBUG
-        public const bool BOT_DEBUG = true;
+        public const bool CHS_DEBUG = true;
 #else
-        public const bool BOT_DEBUG = false;
+        public const bool CHS_DEBUG = false;
 #endif
+
+        public static int VER_MAJOR => Assembly.GetEntryAssembly().GetName().Version.Major;
+        public static int VER_MINOR => Assembly.GetEntryAssembly().GetName().Version.Minor;
+        public static int VER_BUILD => Assembly.GetEntryAssembly().GetName().Version.Build;
+
+        public static bool IsPreRelease => VER_MAJOR == 0;
+
         public static ChessGame Game; // only one game to start with.
 
         public static TcpListener Listener;
@@ -26,8 +40,102 @@ namespace Che_ssServer
         public static MasterlistDLL.MasterlistServer Masterlist;
         public static bool MasterlistEnabled { get; protected set; } = false;
 
+        public static EventHandler<string> ConsoleInput;
+
+        enum Compare
+        {
+            Less = -1,
+            Equal = 0,
+            More = 1
+        }
+
+        /// <summary>
+        /// Returns from perspective of the FIRST version
+        /// </summary>
+        static Compare CompareVersion(Version first, Version second)
+        {
+            if(first.Major == second.Major)
+            {
+                if(first.Minor == second.Minor)
+                {
+                    if (first.Build == second.Build)
+                        return Compare.Equal;
+                    return (Compare)first.Build.CompareTo(second.Build);
+                }
+                return (Compare)first.Minor.CompareTo(second.Minor);
+            }
+            return (Compare)first.Major.CompareTo(second.Major);
+        }
+
+        /// <summary>
+        /// Probes github to test if we are running the latest version
+        /// </summary>
+        /// <returns>True if latest, or if github was unreachable, False if not the latest</returns>
+        public static bool IsLatestVersion()
+        {
+            string endpoint = "https://api.github.com/repos/TheGrandCoding/che-sserver/releases/latest";
+            bool isLatest = true; // we default to true, and only say 'False' if we are sure its out of date
+            try
+            {
+                using(HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri(endpoint);
+                    client.DefaultRequestHeaders.Add("User-Agent", "chesserver CheAle14");
+                    var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+                    var response = client.SendAsync(request).Result;
+                    var asString = response.Content.ReadAsStringAsync().Result;
+                    if(response.IsSuccessStatusCode)
+                    {
+                        var parsed = JObject.Parse(asString);
+                        var tag = parsed["tag_name"];
+                        var tagstr = tag.ToString();
+
+                        Program.Log("-------- Latest Version: --------", LogSeverity.Info, "Github");
+                        Program.Log("Tag: " + tagstr, LogSeverity.Debug, "Github");
+                        Program.Log("Name: " + parsed["name"].ToString(), LogSeverity.Debug, "Github");
+                        Program.Log("By: " + parsed["author"]["login"].ToString(), LogSeverity.Debug, "GitHub");
+                        Program.Log("At: " + parsed["published_at"].ToString(), LogSeverity.Debug, "GitHub");
+                        Program.Log("-------- Latest Version  --------", LogSeverity.Info , "GitHub");
+
+                        if (Version.TryParse(tagstr.Replace("v", ""), out var version))
+                        {
+                            return CompareVersion(Assembly.GetEntryAssembly().GetName().Version, version) != Compare.Less;
+                        }
+                    } else
+                    {
+                        Program.Log($"{response.StatusCode}: {asString}", LogSeverity.Error, "GithubVersion");
+                    }
+                }
+            } catch (Exception ex)
+            {
+                Log("VersionUpdater", ex);
+            }
+            return isLatest;
+        }
+
+        static void HandleConsoleInput(object sender, string input)
+        {
+            if (input.StartsWith("/"))
+                input = input.Substring(1);
+
+            if(input == "save ")
+            {
+                var str = Game.ToSave();
+                System.IO.File.WriteAllText("savedgame.txt", str);
+                Program.Log(str, LogSeverity.Info, "SaveGame");
+            }
+        }
+
         static void Main(string[] args)
         {
+            Log("Running version: " + Assembly.GetEntryAssembly().GetName().Version.ToString(), LogSeverity.Info);
+            if(IsLatestVersion())
+            {
+                Log("Running latest", LogSeverity.Debug, "VersionChecker");
+            } else
+            {
+                Log("Version if out of date, please check Github releases for update", LogSeverity.Critical, "VersionChecker");
+            }
             Listener = new TcpListener(IPAddress.Any, 9993);
             Listener.Start();
             var thread = new Thread(HandleNewConnections);
@@ -54,8 +162,13 @@ namespace Che_ssServer
                 MasterlistEnabled = false;
                 Log("MLStart", ex);
             }
+            ConsoleInput += HandleConsoleInput;
             while(true)
-                Console.ReadLine();
+            {
+                var obj = Console.ReadLine();
+                ConsoleInput?.Invoke(null, obj);
+            }
+
         }
 
         public static string PinString(PinType pin, string seperator = ", ")
@@ -90,6 +203,20 @@ namespace Che_ssServer
             return str;
         }
 
+        static bool duplicateName(string testing)
+        {
+            if (Game.Black?.Name == testing)
+                return true;
+            if(Game.White?.Name == testing)
+                return true;
+            foreach(var spec in Game.Spectators)
+            {
+                if (spec.Name == testing)
+                    return true;
+            }
+            return false;
+        }
+
         static void HandleNewConnections()
         {
             TcpClient clientSocket = null;
@@ -118,12 +245,44 @@ namespace Che_ssServer
                 }
                 dataFromClient = dataFromClient.Substring(1, dataFromClient.LastIndexOf("`") - 1);
                 Log("New Player " + dataFromClient + " @ " + ipEnd.ToString(), LogSeverity.Info, "Server");
+                string userVersion = "";
+                try
+                {
+                    userVersion = dataFromClient.Substring(dataFromClient.IndexOf(":") + 1);
+                }
+                catch 
+                {
+                }
+                if(Version.TryParse(userVersion, out var vers))
+                {
+                    if(vers.Major != VER_MAJOR || vers.Minor != VER_MINOR)
+                    {
+                        Log($"{dataFromClient} has outdated client, refusing.", LogSeverity.Warning, "VersionCheck");
+                        clientSocket.Close();
+                        continue;
+                    }
+                } else
+                {
+                    Log($"{dataFromClient} has malformed, invalid or absent version, refusing..", LogSeverity.Warning, "VersionCheck");
+                    clientSocket.Close();
+                    continue;
+                }
+                dataFromClient = dataFromClient.Replace(":" + userVersion, "");
+                string testName = dataFromClient;
+                int count = 0;
+                while(duplicateName(testName))
+                {
+                    count++;
+                    testName = dataFromClient + count.ToString();
+                }
                 if(Game.White == null || Game.Black == null)
                 {
-                    Player user = new Player(dataFromClient, clientSocket);
+                    Player user = new Player(testName, clientSocket);
                     user.GameIn = Game;
+                    if (testName != dataFromClient)
+                        user.Send("NAME:" + testName); // since client doesnt know its changed
                     if (Game.White == null)
-                    {
+                        {
                         Game.White = user;
                         Log($"{user.Name} is White", LogSeverity.Info, "Game");
                     }
@@ -136,9 +295,11 @@ namespace Che_ssServer
                     }
                 } else
                 { // both players filled, so we spectate
-                    Spectator spec = new Spectator(dataFromClient, clientSocket);
+                    Spectator spec = new Spectator(testName, clientSocket);
                     spec.GameIn = Game;
                     Game.Spectators.Add(spec);
+                    if (testName != dataFromClient)
+                        spec.Send("NAME:" + testName); // since client doesnt know its changed
                 }
             }
         }

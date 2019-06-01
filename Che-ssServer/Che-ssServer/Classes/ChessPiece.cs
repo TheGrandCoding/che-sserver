@@ -19,6 +19,7 @@ namespace Che_ssServer.Classes
         public ChessPosition Location;
         public PlayerColor Color;
         public PinType Pinned;
+        public List<Pins> AllPins = new List<Pins>();
         public TakableBy Takable => Location.Takable;
         private bool atStartingPosition = true;
 
@@ -27,6 +28,21 @@ namespace Che_ssServer.Classes
         public ChessPiece(PieceType type, ChessPosition pos, PlayerColor color, ChessGame game) : base(game)
         {
             Type = type; Location = pos; Color = color;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="AllPins"/> as a readable string
+        /// </summary>
+        /// <returns></returns>
+        public string GetPinsAsString()
+        {
+            string str = "Pins: ";
+            foreach(var pin in AllPins)
+            {
+                str += $"[{pin.By.Location.Pos}, {pin.Type}], ";
+            }
+            str = str.Substring(0, str.Length - 2); // strips last ", "
+            return str;
         }
 
         public AttemptMoveResult GetMoveablePositions(bool dontRemoveOwnColor = false)
@@ -163,6 +179,10 @@ namespace Che_ssServer.Classes
             {
                 Program.Log($"Move:{this.Location.Pos}", ex);
             }
+            if(errMessage.Contains("pinned"))
+            {
+                errMessage += "\r\n" + GetPinsAsString();
+            }
             return new AttemptMoveResult(dontRemoveOwnColor ? pos : ReturnValidLocations(pos), string.IsNullOrWhiteSpace(errMessage), errMessage);
         }
 
@@ -229,17 +249,21 @@ namespace Che_ssServer.Classes
                             if(target.PieceHere?.Type == PieceType.King)
                             {
                                 if (lastValidLocation != null && lastValidLocation.PieceHere != null)
+                                {
                                     //                           This  V  is a bitwise operator, for use in the [Flags] thing
                                     lastValidLocation.PieceHere.Pinned |= wePinWith;
+                                    lastValidLocation.PieceHere.AllPins.Add(new Pins(this, wePinWith));
+                                }
                                 break;
                             } else
                             {
                                 if(blocked)
                                 {
                                     if(lastValidLocation != null && lastValidLocation.PieceHere != null)
+                                    {
                                         lastValidLocation.PieceHere.Pinned &= ~wePinWith; // removes ONLY our pin
-                                    /*if (target.PieceHere == null)
-                                        break;*/
+                                        lastValidLocation.PieceHere.AllPins.RemoveAll(x => x.By == this && x.Type == wePinWith);
+                                    }
                                 }
                             }
                         }
@@ -256,7 +280,10 @@ namespace Che_ssServer.Classes
                 if(lastValidLocation != null && amountInWay > 2)
                 {
                     if (lastValidLocation.PieceHere != null)
+                    {
                         lastValidLocation.PieceHere.Pinned ^= wePinWith; // removes ONLY our pin
+                        lastValidLocation.PieceHere.AllPins.RemoveAll(x => x.By == this && x.Type == wePinWith);
+                    }
                 }
             }
             return ReturnValidLocations(pos);
@@ -308,12 +335,14 @@ namespace Che_ssServer.Classes
                                     if(lastValidPosition != null && lastValidPosition.PieceHere != null)
                                     {
                                         lastValidPosition.PieceHere.Pinned = wePinWith;
+                                        lastValidPosition.PieceHere.AllPins.Add(new Pins(this, wePinWith));
                                         break;
                                     } else
                                     {
                                         if(blocked)
                                         {
                                             lastValidPosition.PieceHere.Pinned &= ~wePinWith;
+                                            lastValidPosition.PieceHere.AllPins.RemoveAll(x => x.By == this && x.Type == wePinWith);
                                         }
                                     }
                                 }
@@ -334,6 +363,7 @@ namespace Che_ssServer.Classes
                     if(amountInWay >= 2)
                     {
                         lastValidPosition.PieceHere.Pinned &= ~wePinWith;
+                        lastValidPosition.PieceHere.AllPins.RemoveAll(x => x.By == this && x.Type == wePinWith);
                     }
                 }
             }
@@ -392,6 +422,17 @@ namespace Che_ssServer.Classes
             IsSuccess = success;
             Message = message;
             Locations = locations;
+        }
+    }
+
+    public class Pins
+    {
+        public PinType Type;
+        public ChessPiece By;
+        public Pins(ChessPiece by, PinType type)
+        {
+            Type = type;
+            By = by;
         }
     }
 
