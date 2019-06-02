@@ -1,4 +1,6 @@
 ﻿using Che_ssServer.Helpers;
+using Che_ssServer.Services;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -17,6 +19,18 @@ namespace Che_ssServer.Classes
         public TimeSpan BlackTime;
         public bool HasWhiteGoneFirst { get; protected set; }
         public System.Timers.Timer TickTimer;
+
+        public void Log(string message, LogSeverity severity = LogSeverity.Info)
+        {
+            Program.Log(message, severity, $"GM/{White.Name}-{Black.Name}");
+        }
+
+        /// <summary>
+        /// If non-null, indicates the game has been ended by the tournament
+        /// The type indicates what condition caused it to end
+        /// </summary>
+        public EndConditions.EndConditition TournamentEndDueTo;
+        public WinType TournamentEndWinner;
 
         public event EventHandler<ChessGameWonEventArgs> GameOver;
 
@@ -96,7 +110,7 @@ namespace Che_ssServer.Classes
                         }
                     }
                     var pos = new ChessPosition(x, y, this, piece);
-                    Program.Log(pos.ToString(), Services.LogSeverity.Debug, "Board");
+                    //Program.Log(pos.ToString(), Services.LogSeverity.Debug, "Board");
                     pos.PieceHere = piece;
                     if(pos.PieceHere != null)
                     {
@@ -158,7 +172,7 @@ namespace Che_ssServer.Classes
             }
         }
 
-        private void SwitchPlayers()
+        public void SwitchPlayers()
         {
             if (CurrentlyWaitingFor.Color == PlayerColor.White)
                 CurrentlyWaitingFor = Black;
@@ -343,6 +357,9 @@ namespace Che_ssServer.Classes
 
         private WinType CheckWin()
         { // TODO refactor
+            if (this.TournamentEndDueTo != null)
+                return WinType.EndCondition | this.TournamentEndWinner;
+
             var whitePieces = AllPieces.Where(x => x.Color == PlayerColor.White);
             var blackPieces = AllPieces.Where(x => x.Color == PlayerColor.Black);
 
@@ -410,12 +427,13 @@ namespace Che_ssServer.Classes
                 string reason = "";
                 if (win.HasFlag(WinType.NoKing))
                     reason += "NOKING";
-                else if(win.HasFlag(WinType.CheckMate))
+                else if (win.HasFlag(WinType.CheckMate))
                     reason += "CHECKMATE";
+                else if (win.HasFlag(WinType.EndCondition))
+                    reason += $"END:{TournamentEndDueTo.Display}";
                 Winner = winner.Color;
                 this.GameOver?.Invoke(this, new ChessGameWonEventArgs(this, winner, opposite, reason));
             }
-
         }
 
         public ChessPosition GetLocation(int x, int y)
@@ -473,16 +491,35 @@ namespace Che_ssServer.Classes
             jsonObject.Add("board", JToken.FromObject(board));
             return jsonObject.ToString();
         }
+        public ChessGame UpdateFromString(string savedGame)
+        {
+            JObject jsonObj = JObject.Parse(savedGame);
+            var delta = JsonConvert.DeserializeObject<JsonGameDelta>(savedGame);
+            // Apply delta
+            this.WhiteTime = TimeSpan.Parse(delta.whiteTime);
+            this.BlackTime = TimeSpan.Parse(delta.blackTime);
+            this.CurrentlyWaitingFor = delta.color == PlayerColor.White ? this.White : this.Black;
+            var board = jsonObj["board"].ToObject<Dictionary<string, string[]>>();
+            foreach(var keypair in board)
+            {
+                var pos = this.GetLocation(keypair.Key);
+                if(keypair.Value.Length > 0)
+                {
+
+                }
+            }
+        }
     }
 
-    enum WinType
+    public enum WinType
     {
-        NoWin     = 0,
-        White     = 0b0001,
-        Black     = 0b0010,
-        CheckMate = 0b0100,
-        NoKing    = 0b1000,
-        Draw      = White | Black,
+        NoWin        = 0,
+        White        = 0b00001,
+        Black        = 0b00010,
+        CheckMate    = 0b00100,
+        NoKing       = 0b01000,
+        EndCondition = 0b10000,
+        Draw = White | Black,
     }
 
     public class ChessGameWonEventArgs : EventArgs

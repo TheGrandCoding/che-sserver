@@ -23,6 +23,12 @@ namespace Che_ssServer.Classes
         public TakableBy Takable => Location.Takable;
         private bool atStartingPosition = true;
 
+        /// <summary>
+        /// for use with <see cref="ChessGame.UpdateFromString(string)"/>
+        /// dictates whether this piece has been set to the correct location
+        /// </summary>
+        public bool hasBeenLoaded { get { return atStartingPosition; } set { atStartingPosition = value; } }
+
         public bool Taken => Location == null;
 
         public ChessPiece(PieceType type, ChessPosition pos, PlayerColor color, ChessGame game) : base(game)

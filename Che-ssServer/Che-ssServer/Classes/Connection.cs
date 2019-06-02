@@ -13,16 +13,36 @@ namespace Che_ssServer.Classes
     /// </summary>
     public abstract class Connection
     {
+        private Connection() { }
         public Connection(string name)
         {
             Name = name;
         }
-        public readonly string Name;
+        public string Name { get; private set; }
         public bool Connected { get; protected set; }
         public int disconnected = 0;
         public TcpClient Client;
         private bool disconnectedfunctioncalled = false;
         public Thread recicivedataThread;
+
+        /// <summary>
+        /// Transfers the Connection to a different type
+        /// </summary>
+        /// <typeparam name="T"><see cref="Player"/> or <seealso cref="Spectator"/></typeparam>
+        public T ReturnAs<T>() where T : Connection
+        {
+            T newCon = default(T);
+            newCon.Name = Name;
+            newCon.disconnected = this.disconnected;
+            newCon.Client = this.Client;
+            newCon.disconnectedfunctioncalled = this.disconnectedfunctioncalled;
+            newCon.recicivedataThread = this.recicivedataThread;
+            newCon.GameIn = this.GameIn;
+            newCon.RecievedMessage = this.RecievedMessage;
+            newCon.Connected = this.Connected;
+            this.RecievedMessage = null;
+            return newCon;
+        }
 
         public ChessGame GameIn;
 

@@ -12,7 +12,7 @@ using System.Reflection;
 using System.Net.Http;
 using Newtonsoft.Json.Linq;
 
-[assembly: AssemblyVersion("0.0.1")]
+[assembly: AssemblyVersion("0.2.0")]
 // Naming scheme - Major.Minor.Build
 // Server should refuse connection if Major OR Minor are out of sync
 // Build should not be considered
@@ -123,7 +123,10 @@ namespace Che_ssServer
                 var str = Game.ToSave();
                 System.IO.File.WriteAllText("savedgame.txt", str);
                 Program.Log(str, LogSeverity.Info, "SaveGame");
-            }
+            } else if (input == "load")
+            {
+                var str = System.IO.File.ReadAllText("savedgame.txt");
+            } 
         }
 
         static void Main(string[] args)
@@ -135,6 +138,10 @@ namespace Che_ssServer
             } else
             {
                 Log("Version if out of date, please check Github releases for update", LogSeverity.Critical, "VersionChecker");
+                Console.ReadLine();
+                Log("Console will close on next input, please pull the latest version from GitHub.", LogSeverity.Critical, "UPDATE");
+                Console.ReadKey();
+                return;
             }
             Listener = new TcpListener(IPAddress.Any, 9993);
             Listener.Start();
@@ -376,7 +383,10 @@ namespace Che_ssServer
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    return ip.ToString();
+                    if(ip.ToString().StartsWith("192.") || ip.ToString().StartsWith("10."))
+                    { // we want a local address, so don't pull one that isnt
+                        return ip.ToString();
+                    }
                 }
             }
             throw new Exception("No network adapters with an IPv4 address in the system!");
