@@ -22,9 +22,9 @@ namespace Che_ssServer
     {
         public const string MAIN_PATH = "";
 #if DEBUG
-        public const bool CHS_DEBUG = true;
+        public static bool CHS_DEBUG = true;
 #else
-        public const bool CHS_DEBUG = false;
+        public static bool CHS_DEBUG = false;
 #endif
 
         public static int VER_MAJOR => Assembly.GetEntryAssembly().GetName().Version.Major;
@@ -33,7 +33,10 @@ namespace Che_ssServer
 
         public static bool IsPreRelease => VER_MAJOR == 0;
 
+        [Obsolete]
         public static ChessGame Game; // only one game to start with.
+
+        public static dynamic Tournament;
 
         public static TcpListener Listener;
 
@@ -118,15 +121,58 @@ namespace Che_ssServer
             if (input.StartsWith("/"))
                 input = input.Substring(1);
 
-            if(input == "save ")
+            if(input.StartsWith("help"))
             {
-                var str = Game.ToSave();
-                System.IO.File.WriteAllText("savedgame.txt", str);
-                Program.Log(str, LogSeverity.Info, "SaveGame");
-            } else if (input == "load")
+                Program.Log("Use `/condition [name]` to set the end condition, then use `/start` when all players are in", LogSeverity.Warning, "Console");
+            } else if(input.StartsWith("condition ") || input.StartsWith("cond "))
             {
-                var str = System.IO.File.ReadAllText("savedgame.txt");
-            } 
+                var q = from t in Assembly.GetExecutingAssembly().GetTypes()
+                        where t.IsClass && t.Namespace == "Che_ssServer.EndConditions" && t.BaseType == typeof(EndConditions.EndConditition)
+                        select t;
+                var name = input.Substring(input.IndexOf(" ")).Trim();
+                var item = q.FirstOrDefault(x => x.Name == name);
+                if(item == null)
+                {
+                    Program.Log("Unknown condition - you muse use the type, allowed: " + string.Join(", ", q.Select(x => x.Name)), LogSeverity.Warning, "Console");
+                } else
+                {
+                    if(item == typeof(EndConditions.EndAfterTime))
+                    {
+                        Tournament = new Tournament<EndConditions.EndAfterTime>(new EndConditions.EndAfterTime(60 * 5));
+                        Program.Log("Tournament set: " + Tournament.EndConditition.Display, LogSeverity.Warning, "Console");
+                    }
+                }
+
+            } else if(input.StartsWith("save "))
+            {
+                input = input.Replace("save ", "");
+                if(int.TryParse(input, out int value))
+                {
+                    List<ChessGame> games = Tournament.Games;
+                    var game = games.FirstOrDefault(x => x.Id == value);
+                    if (game == null)
+                        throw new ArgumentException("Game with id does not exist");
+                    var str = game.ToSave();
+                    System.IO.File.WriteAllText("savedgame.txt", str);
+                    Program.Log(str, LogSeverity.Info, "SaveGame");
+                }
+            } else if (input.StartsWith("load "))
+            {
+                input = input.Replace("load ", "");
+                if(int.TryParse(input, out int value))
+                {
+                    var str = System.IO.File.ReadAllText("savedgame.txt");
+                    List<ChessGame> games = Tournament.Games;
+                    var game = games.FirstOrDefault(x => x.Id == value);
+                    if(game == null)
+                        throw new ArgumentException("Game with id does not exist");
+                    game.UpdateFromString(str);
+                }
+            } else if (input == "start")
+            {
+                Program.Log("Starting!", LogSeverity.Warning, "Console");
+                Tournament.StartAll();
+            }
         }
 
         static void Main(string[] args)
@@ -147,7 +193,6 @@ namespace Che_ssServer
             Listener.Start();
             var thread = new Thread(HandleNewConnections);
             thread.Start();
-            Game = new ChessGame();
             Log("Listening on: " + Listener.LocalEndpoint.ToString(), LogSeverity.Debug);
             Log("Server IP: " + GetLocalIPAddress(), LogSeverity.Info);
             try
@@ -170,10 +215,18 @@ namespace Che_ssServer
                 Log("MLStart", ex);
             }
             ConsoleInput += HandleConsoleInput;
+            Log("-> Please see /help for more information", LogSeverity.Warning, "Console");
+            Log("-> You need to set how the tournament will end via /condition [type]", LogSeverity.Warning, "Console");
             while(true)
             {
                 var obj = Console.ReadLine();
-                ConsoleInput?.Invoke(null, obj);
+                try
+                {
+                    ConsoleInput?.Invoke(null, obj);
+                } catch(Exception ex)
+                {
+                    Program.Log("Console", ex);
+                }
             }
 
         }
@@ -212,13 +265,9 @@ namespace Che_ssServer
 
         static bool duplicateName(string testing)
         {
-            if (Game.Black?.Name == testing)
-                return true;
-            if(Game.White?.Name == testing)
-                return true;
-            foreach(var spec in Game.Spectators)
+            foreach(Connection coc in Tournament.Connections)
             {
-                if (spec.Name == testing)
+                if (coc.Name == testing)
                     return true;
             }
             return false;
@@ -277,37 +326,22 @@ namespace Che_ssServer
                 dataFromClient = dataFromClient.Replace(":" + userVersion, "");
                 string testName = dataFromClient;
                 int count = 0;
+                if(Tournament == null)
+                {
+                    Log("Tournament is not set - please see /help", LogSeverity.Critical, "NewUserNoTournament");
+                    clientSocket.Close();
+                    continue;
+                }
                 while(duplicateName(testName))
                 {
                     count++;
                     testName = dataFromClient + count.ToString();
                 }
-                if(Game.White == null || Game.Black == null)
-                {
-                    Player user = new Player(testName, clientSocket);
-                    user.GameIn = Game;
-                    if (testName != dataFromClient)
-                        user.Send("NAME:" + testName); // since client doesnt know its changed
-                    if (Game.White == null)
-                        {
-                        Game.White = user;
-                        Log($"{user.Name} is White", LogSeverity.Info, "Game");
-                    }
-                    else
-                    {
-                        Game.Black = user;
-                        Log($"{user.Name} is Black, game starting", LogSeverity.Info, "Game");
-                        Game.StartUp();
-                        Game.GameOver += HandleGameOver;
-                    }
-                } else
-                { // both players filled, so we spectate
-                    Spectator spec = new Spectator(testName, clientSocket);
-                    spec.GameIn = Game;
-                    Game.Spectators.Add(spec);
-                    if (testName != dataFromClient)
-                        spec.Send("NAME:" + testName); // since client doesnt know its changed
-                }
+
+                var player = new Player(testName, clientSocket);
+                if (testName != dataFromClient)
+                    player.Send("NAME:" + testName);
+                Tournament.Transfer(player);
             }
         }
 

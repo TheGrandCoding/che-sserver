@@ -10,27 +10,28 @@ namespace Che_ssServer.EndConditions
     /// <summary>
     /// The base end condition class
     /// </summary>
-    public abstract class EndConditition
+    public abstract class EndConditition : IEndConditition
     {
-        protected EndConditition(string name, bool isturnonly)
+        protected EndConditition(string name, bool isturnonly, string display)
         {
             Name = name;
             IsTurnOnly = isturnonly;
+            Display = display;
         }
         /// <summary>
         /// The unique name of this condition
         /// </summary>
-        public readonly string Name;
+        public string Name { get; }
         /// <summary>
         /// Whether the condition only checks whether the **turn** has ended
         /// Thus, it would not affect whether the game should end
         /// </summary>
-        public readonly bool IsTurnOnly;
+        public bool IsTurnOnly { get; }
 
         /// <summary>
         /// The string message displayed to players to indicate how the Torunament works.
         /// </summary>
-        public string Display;
+        public string Display { get; }
 
         /// <summary>
         /// Checks whether the game (or turn - <see cref="IsTurnOnly"/>) should end

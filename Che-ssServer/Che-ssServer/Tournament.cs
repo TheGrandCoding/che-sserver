@@ -4,27 +4,52 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Che_ssServer.Classes;
+using Che_ssServer.EndConditions;
 using Che_ssServer.Helpers;
 
 namespace Che_ssServer
 {
-    public class Tournament<T> where T : EndConditions.EndConditition
+    public class Tournament : Tournament<EndConditions.EndConditition>
+    {
+        public Tournament(EndConditition condition) : base(condition)
+        {
+        }
+    }
+    public class Tournament<T> where T : class, EndConditions.IEndConditition
     {
         public List<ChessGame> Games { get; set; } = new List<ChessGame>();
         public List<Player> Players { get
             {
                 var player = new List<Player>();
-                foreach(var game in Games)
+                foreach (var game in Games)
                 {
                     player.Add(game.White);
                     player.Add(game.Black);
                 }
+                player = player.Where(x => x != null).ToList();
                 return player;
             } }
         public List<Spectator> Spectators { get
             {
                 return Games.SelectMany(x => x.Spectators).ToList();
             } }
+        public List<Connection> Connections
+        {
+            get
+            {
+                List<Connection> connections = new List<Connection>();
+                foreach(var p in Players)
+                    connections.Add(p as Connection);
+                foreach(var p in Spectators)
+                    connections.Add(p as Connection);
+                if(waitingGame.White != null)
+                    connections.Add(waitingGame.White);
+                if (waitingGame.Black != null)
+                    connections.Add(waitingGame.Black);
+                connections.AddRange(waitingGame.Spectators);
+                return connections;
+            }
+        }
 
         /// <summary>
         /// players who are waiting because their game has ended.
@@ -82,6 +107,7 @@ namespace Che_ssServer
                     var first = waitingGame.Spectators[0];
                     game.Spectators.Add(first);
                 }
+                game.Log($"{game.White.Name} vs {game.Black.Name}, {game.Spectators.Count} spectating");
                 game.StartUp();
                 game.GameOver += Game_GameOver;
             }
@@ -119,15 +145,22 @@ namespace Che_ssServer
             {
                 if(entree is Player player)
                 {
+                    Program.Log($"Player {player.Name} now waiting for game {waitingGame.Id}", Services.LogSeverity.Warning, "Transfer");
                     if (waitingGame.White == null)
+                    {
                         waitingGame.White = player;
+                    }
                     else
+                    {
                         waitingGame.Black = player;
-                    player.GameIn = waitingGame;
-                    Games.Add(waitingGame);
-                    waitingGame = new ChessGame();
-                } else if (entree is Spectator spectator)
+                        player.GameIn = waitingGame;
+                        Games.Add(waitingGame);
+                        waitingGame = new ChessGame();
+                    }
+                }
+                else if (entree is Spectator spectator)
                 {
+                    Program.Log($"Spectator {spectator.Name} now waiting for game {waitingGame.Id}", Services.LogSeverity.Warning, "Transfer");
                     waitingGame.Spectators.Add(spectator);
                     spectator.GameIn = waitingGame;
                 }

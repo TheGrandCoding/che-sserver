@@ -7,20 +7,19 @@ using Che_ssServer.Classes;
 
 namespace Che_ssServer.EndConditions
 {
-    public class EndAfterTime : EndConditition
+    public class EndAfterTime : EndConditition, IEndConditition
     {
         /// <summary>
         /// Number of seconds for each player to have until they lose
         /// </summary>
         public readonly int SecondTimeout;
-        public EndAfterTime(int time) : base("End After Time", false)
+        public EndAfterTime(int time) : base("End After Time", false, $"Player loses after {time}s")
         {
             SecondTimeout = time;
-            Display = $"Player loses after {time}s";
         }
 
         /// <inheritdoc/>
-        public override bool HasEnded(ChessGame game)
+        public override (bool ended, WinType playerWon) HasEnded(ChessGame game)
         {
             TimeSpan time;
             if(game.CurrentlyWaitingFor == game.White)
@@ -30,7 +29,7 @@ namespace Che_ssServer.EndConditions
             {
                 time = game.BlackTime;
             }
-            return time.TotalSeconds > SecondTimeout;
+            return (time.TotalSeconds > SecondTimeout, game.CurrentlyWaitingFor == game.White ? WinType.Black : WinType.White);
         }
     }
 }

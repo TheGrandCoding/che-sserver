@@ -13,6 +13,12 @@ namespace Che_ssServer.Classes
 {
     public class ChessGame
     {
+        public ChessGame()
+        {
+            Id = System.Threading.Interlocked.Increment(ref _id);
+        }
+        int _id = 0;
+        public int Id { get; private set; }
         public Player White;
         public Player Black;
         public TimeSpan WhiteTime;
@@ -22,14 +28,14 @@ namespace Che_ssServer.Classes
 
         public void Log(string message, LogSeverity severity = LogSeverity.Info)
         {
-            Program.Log(message, severity, $"GM/{White.Name}-{Black.Name}");
+            Program.Log(message, severity, $"GAME/{Id}");
         }
 
         /// <summary>
         /// If non-null, indicates the game has been ended by the tournament
         /// The type indicates what condition caused it to end
         /// </summary>
-        public EndConditions.EndConditition TournamentEndDueTo;
+        public EndConditions.IEndConditition TournamentEndDueTo;
         public WinType TournamentEndWinner;
 
         public event EventHandler<ChessGameWonEventArgs> GameOver;
@@ -491,7 +497,7 @@ namespace Che_ssServer.Classes
             jsonObject.Add("board", JToken.FromObject(board));
             return jsonObject.ToString();
         }
-        public ChessGame UpdateFromString(string savedGame)
+        public void UpdateFromString(string savedGame)
         {
             JObject jsonObj = JObject.Parse(savedGame);
             var delta = JsonConvert.DeserializeObject<JsonGameDelta>(savedGame);
@@ -500,14 +506,32 @@ namespace Che_ssServer.Classes
             this.BlackTime = TimeSpan.Parse(delta.blackTime);
             this.CurrentlyWaitingFor = delta.color == PlayerColor.White ? this.White : this.Black;
             var board = jsonObj["board"].ToObject<Dictionary<string, string[]>>();
+            foreach(var piece in this.AllPieces)
+            {
+                piece.hasBeenLoaded = false;
+            }
             foreach(var keypair in board)
             {
                 var pos = this.GetLocation(keypair.Key);
                 if(keypair.Value.Length > 0)
                 {
-
+                    var pieceType = keypair.Value[0]; // eg "Pawn" "King" etc
+                    var pieceColour = keypair.Value[1]; // White / Black
+                    var firstPiece = this.AllPieces.FirstOrDefault(x => x.Type.ToString() == pieceType
+                                                                && x.Color.ToString() == pieceColour);
+                    if(firstPiece != null)
+                    {
+                        firstPiece.Location.PieceHere = null;
+                        firstPiece.Location = pos;
+                        pos.PieceHere = firstPiece;
+                        firstPiece.hasBeenLoaded = true;
+                    }
                 }
             }
+            this.White.Send("LOAD:" + savedGame);
+            this.Black.Send("LOAD:" + savedGame);
+            foreach (var spec in this.Spectators)
+                spec.Send("LOAD:" + savedGame);
         }
     }
 

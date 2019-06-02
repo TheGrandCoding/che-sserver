@@ -61,13 +61,9 @@ namespace Che_ssServer.Services
                     case LogSeverity.Verbose:
                     case LogSeverity.Debug:
                         if (Program.CHS_DEBUG)
-                        {
                             Console.ForegroundColor = ConsoleColor.DarkGray;
-                        }
                         else
-                        {
                             Console.ForegroundColor = ConsoleColor.Gray;
-                        }
                         break;
                 }
                 return Console.Out.WriteLineAsync(logText);       // Write the log text to the console
