@@ -25,6 +25,13 @@ namespace Che_ssServer.Classes
         public TimeSpan BlackTime;
         public bool HasWhiteGoneFirst { get; protected set; }
         public System.Timers.Timer TickTimer;
+        /// <summary>
+        /// 0 = not loaded at all
+        /// 1 = loaded, awaiting reply
+        /// 2 = heard first reply
+        /// 3 = heard second reply, all is good
+        /// </summary>
+        public int HasJustLoadedSavedGame { get; private set; } = 0;
 
         public void Log(string message, LogSeverity severity = LogSeverity.Info)
         {
@@ -316,6 +323,18 @@ namespace Che_ssServer.Classes
                 GameOver?.Invoke(this, new ChessGameWonEventArgs(this, opposite, player, "RESIGN"));
             } else
             { // Unknown message, so wasn't handled here.
+                if(HasJustLoadedSavedGame > 0)
+                {
+                    if(message == "LOADED")
+                    {
+                        HasJustLoadedSavedGame++;
+                    }
+                    if(HasJustLoadedSavedGame >= 3)
+                    { // both players have responded, so we continue
+                        HasJustLoadedSavedGame = 0;
+                        BroadCastDeltas();
+                    }
+                }
                 return false;
             }
             return true;
@@ -505,6 +524,12 @@ namespace Che_ssServer.Classes
             this.WhiteTime = TimeSpan.Parse(delta.whiteTime);
             this.BlackTime = TimeSpan.Parse(delta.blackTime);
             this.CurrentlyWaitingFor = delta.color == PlayerColor.White ? this.White : this.Black;
+            GameDelta lastDelta;
+            if (PastDeltas.Count > 0)
+                lastDelta = PastDeltas[PastDeltas.Count];
+            else
+                lastDelta = null;
+            var gameDelta = new GameDelta(this, lastDelta);
             var board = jsonObj["board"].ToObject<Dictionary<string, string[]>>();
             foreach(var piece in this.AllPieces)
             {
@@ -528,6 +553,7 @@ namespace Che_ssServer.Classes
                     }
                 }
             }
+            HasJustLoadedSavedGame = 1;
             this.White.Send("LOAD:" + savedGame);
             this.Black.Send("LOAD:" + savedGame);
             foreach (var spec in this.Spectators)
